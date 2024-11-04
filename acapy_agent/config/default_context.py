@@ -143,10 +143,13 @@ class DefaultContextBuilder(ContextBuilder):
         plugin_registry.register_plugin("acapy_agent.wallet")
         plugin_registry.register_plugin("acapy_agent.wallet.keys")
 
+        did_plugins = ["acapy_agent.did.cheqd"]
+
         anoncreds_plugins = [
             "acapy_agent.anoncreds",
             "acapy_agent.anoncreds.default.did_indy",
             "acapy_agent.anoncreds.default.did_web",
+            "acapy_agent.anoncreds.default.did_cheqd",
             "acapy_agent.anoncreds.default.legacy_indy",
             "acapy_agent.revocation_anoncreds",
         ]
@@ -157,6 +160,10 @@ class DefaultContextBuilder(ContextBuilder):
             "acapy_agent.revocation",
         ]
 
+        def register_did_plugins():
+            for plugin in did_plugins:
+                plugin_registry.register_plugin(plugin)
+
         def register_askar_plugins():
             for plugin in askar_plugins:
                 plugin_registry.register_plugin(plugin)
@@ -164,6 +171,8 @@ class DefaultContextBuilder(ContextBuilder):
         def register_anoncreds_plugins():
             for plugin in anoncreds_plugins:
                 plugin_registry.register_plugin(plugin)
+
+        register_did_plugins()
 
         if wallet_type == "askar-anoncreds":
             register_anoncreds_plugins()
