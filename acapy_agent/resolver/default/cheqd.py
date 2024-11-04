@@ -1,31 +1,33 @@
-"""Key DID Resolver.
+"""Cheqd DID Resolver."""
 
-Resolution is performed using the IndyLedger class.
-"""
+import json
 
+from aiohttp import ClientSession
+from pydid import DIDDocument
 from typing import Optional, Pattern, Sequence, Text
 
+from ...messaging.valid import CheqdDID
 from ...config.injection_context import InjectionContext
 from ...core.profile import Profile
-from ...did.did_key import DIDKey
-from ...messaging.valid import DIDKey as DIDKeyType
-from ..base import BaseDIDResolver, DIDNotFound, ResolverType
+from ..base import BaseDIDResolver, DIDNotFound, ResolverError, ResolverType
 
 
-class KeyDIDResolver(BaseDIDResolver):
-    """Key DID Resolver."""
+class CheqdDIDResolver(BaseDIDResolver):
+    """Cheqd DID Resolver."""
+
+    DID_RESOLVER_BASE_URL = "https://resolver.cheqd.net/1.0/identifiers/"
 
     def __init__(self):
-        """Initialize Key Resolver."""
+        """Initialize Cheqd Resolver."""
         super().__init__(ResolverType.NATIVE)
 
     async def setup(self, context: InjectionContext):
-        """Perform required setup for Key DID resolution."""
+        """Perform required setup for Cheqd DID resolution."""
 
     @property
     def supported_did_regex(self) -> Pattern:
-        """Return supported_did_regex of Key DID Resolver."""
-        return DIDKeyType.PATTERN
+        """Return supported_did_regex of Cheqd DID Resolver."""
+        return CheqdDID.PATTERN
 
     async def _resolve(
         self,
@@ -33,11 +35,23 @@ class KeyDIDResolver(BaseDIDResolver):
         did: str,
         service_accept: Optional[Sequence[Text]] = None,
     ) -> dict:
-        """Resolve a Key DID."""
-        try:
-            did_key = DIDKey.from_did(did)
+        """Resolve a Cheqd DID."""
+        async with ClientSession() as session:
+            async with session.get(
+                self.DID_RESOLVER_BASE_URL + did,
+            ) as response:
+                if response.status == 200:
+                    try:
+                        # Validate DIDDoc with pyDID
+                        resolver_resp = await response.json()
+                        did_doc_resp = resolver_resp.get("didDocument")
 
-        except Exception as e:
-            raise DIDNotFound(f"Unable to resolve did: {did}") from e
-
-        return did_key.did_doc
+                        did_doc = DIDDocument.from_json(json.dumps(did_doc_resp))
+                        return did_doc.serialize()
+                    except Exception as err:
+                        raise ResolverError("Response was incorrectly formatted") from err
+                if response.status == 404:
+                    raise DIDNotFound(f"No document found for {did}")
+            raise ResolverError(
+                "Could not find doc for {}: {}".format(did, await response.text())
+            )

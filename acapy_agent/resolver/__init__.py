@@ -43,6 +43,12 @@ async def setup(context: InjectionContext):
     else:
         LOGGER.warning("Ledger is not configured, not loading IndyDIDResolver")
 
+    cheqd_resolver = ClassProvider(
+        "acapy_agent.resolver.default.cheqd.CheqdDIDResolver"
+    ).provide(context.settings, context.injector)
+    await cheqd_resolver.setup(context)
+    registry.register_resolver(cheqd_resolver)
+
     web_resolver = ClassProvider(
         "acapy_agent.resolver.default.web.WebDIDResolver"
     ).provide(context.settings, context.injector)
