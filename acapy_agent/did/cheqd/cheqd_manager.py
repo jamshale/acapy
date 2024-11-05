@@ -40,7 +40,7 @@ class DidCheqdManager:
 
         async with self.profile.session() as session:
             try:
-                wallet = session.inject_or(BaseWallet)
+                wallet = session.inject(BaseWallet)
                 if not wallet:
                     raise web.HTTPForbidden(reason="No wallet available")
 
@@ -48,61 +48,59 @@ class DidCheqdManager:
                 verkey = key.verkey
                 verkey_bytes = b58_to_bytes(verkey)
                 public_key_hex = verkey_bytes.hex()
-            except Exception:
-                raise
 
-        try:
-            # generate payload
-            generate_res = await self.registrar.generate_did_doc(network, public_key_hex)
-            if generate_res is None:
-                raise WalletError("Error constructing DID Document")
-
-            did_document = generate_res.get("didDoc")
-            did: str = did_document.get("id")
-            # request create did
-            create_request_res = await self.registrar.create(
-                {"didDocument": did_document, "network": network}
-            )
-
-            job_id: str = create_request_res.get("jobId")
-            did_state = create_request_res.get("didState")
-            if did_state.get("state") == "action":
-                sign_req: dict = did_state.get("signingRequest")[0]
-                kid: str = sign_req.get("kid")
-                payload_to_sign: str = sign_req.get("serializedPayload")
-                signature_bytes = await wallet.sign_message(
-                    b64_to_bytes(payload_to_sign), verkey
+                # generate payload
+                generate_res = await self.registrar.generate_did_doc(
+                    network, public_key_hex
                 )
-                # publish did
-                publish_did_res = await self.registrar.create(
-                    {
-                        "jobId": job_id,
-                        "network": network,
-                        "secret": {
-                            "signingResponse": [
-                                {
-                                    "kid": kid,
-                                    "signature": bytes_to_b64(signature_bytes),
-                                }
-                            ],
-                        },
-                    }
+                if generate_res is None:
+                    raise WalletError("Error constructing DID Document")
+
+                did_document = generate_res.get("didDoc")
+                did: str = did_document.get("id")
+                # request create did
+                create_request_res = await self.registrar.create(
+                    {"didDocument": did_document, "network": network}
                 )
-                publish_did_state = publish_did_res.get("didState")
-                if publish_did_state.get("state") != "finished":
-                    raise WalletError(
-                        f"Error registering DID {publish_did_state.get("reason")}"
+
+                job_id: str = create_request_res.get("jobId")
+                did_state = create_request_res.get("didState")
+                if did_state.get("state") == "action":
+                    sign_req: dict = did_state.get("signingRequest")[0]
+                    kid: str = sign_req.get("kid")
+                    payload_to_sign: str = sign_req.get("serializedPayload")
+                    signature_bytes = await wallet.sign_message(
+                        b64_to_bytes(payload_to_sign), verkey
                     )
-            else:
-                raise WalletError(f"Error registering DID {did_state.get("reason")}")
-        except Exception:
-            raise
-        async with self.profile.session() as session:
-            try:
+                    # publish did
+                    publish_did_res = await self.registrar.create(
+                        {
+                            "jobId": job_id,
+                            "network": network,
+                            "secret": {
+                                "signingResponse": [
+                                    {
+                                        "kid": kid,
+                                        "signature": bytes_to_b64(signature_bytes),
+                                    }
+                                ],
+                            },
+                        }
+                    )
+                    publish_did_state = publish_did_res.get("didState")
+                    if publish_did_state.get("state") != "finished":
+                        raise WalletError(
+                            f"Error registering DID {publish_did_state.get("reason")}"
+                        )
+                else:
+                    raise WalletError(f"Error registering DID {did_state.get("reason")}")
+
+                # create public did record
                 await wallet.create_public_did(CHEQD, key_type, seed, did)
             except WalletError as err:
                 raise WalletError(f"Error registering DID: {err}") from err
-
+            except Exception:
+                raise
         return {
             "did": did,
             "verkey": verkey,
