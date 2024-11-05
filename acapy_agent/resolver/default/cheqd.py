@@ -55,3 +55,20 @@ class CheqdDIDResolver(BaseDIDResolver):
             raise ResolverError(
                 "Could not find doc for {}: {}".format(did, await response.text())
             )
+
+    async def resolve_resource(self, did: str) -> dict:
+        """Resolve a Cheqd DID Linked Resource."""
+        async with ClientSession() as session:
+            async with session.get(
+                self.DID_RESOLVER_BASE_URL + did,
+            ) as response:
+                if response.status == 200:
+                    try:
+                        return await response.json()
+                    except Exception as err:
+                        raise ResolverError("Response was incorrectly formatted") from err
+                if response.status == 404:
+                    raise DIDNotFound(f"No resource found for {did}")
+            raise ResolverError(
+                "Could not find doc for {}: {}".format(did, await response.text())
+            )

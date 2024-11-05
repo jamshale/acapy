@@ -90,9 +90,11 @@ class DidCheqdManager:
                 )
                 publish_did_state = publish_did_res.get("didState")
                 if publish_did_state.get("state") != "finished":
-                    raise WalletError("Error registering DID")
+                    raise WalletError(
+                        f"Error registering DID {publish_did_state.get("reason")}"
+                    )
             else:
-                raise WalletError("Error registering DID")
+                raise WalletError(f"Error registering DID {did_state.get("reason")}")
         except Exception:
             raise
         async with self.profile.session() as session:

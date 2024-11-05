@@ -22,6 +22,14 @@ async def setup(context: InjectionContext):
     await indy_registry.setup(context)
     registry.register(indy_registry)
 
+    cheqd_registry = ClassProvider(
+        "acapy_agent.anoncreds.default.did_cheqd.registry.DIDCheqdRegistry",
+        # supported_identifiers=[],
+        # method_name="did:cheqd",
+    ).provide(context.settings, context.injector)
+    await cheqd_registry.setup(context)
+    registry.register(cheqd_registry)
+
     web_registry = ClassProvider(
         "acapy_agent.anoncreds.default.did_web.registry.DIDWebRegistry",
         # supported_identifiers=[],
