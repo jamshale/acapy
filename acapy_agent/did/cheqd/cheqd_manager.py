@@ -1,16 +1,15 @@
 """DID manager for Cheqd."""
 
-from aries_askar import AskarError, Key
-
+from aiohttp import web
 from .registrar import DidCheqdRegistrar
 from ...core.profile import Profile
-from ...wallet.askar import CATEGORY_DID
+from ...wallet.base import BaseWallet
 from ...wallet.crypto import validate_seed
 from ...wallet.did_method import CHEQD, DIDMethods
 from ...wallet.did_parameters_validation import DIDParametersValidation
 from ...wallet.error import WalletError
-from ...wallet.key_type import ED25519, KeyType, KeyTypes
-from ...wallet.util import bytes_to_b58, b64_to_bytes, bytes_to_b64
+from ...wallet.key_type import ED25519
+from ...wallet.util import b64_to_bytes, bytes_to_b64, b58_to_bytes
 
 
 class DidCheqdManager:
@@ -23,35 +22,34 @@ class DidCheqdManager:
         self.profile = profile
         self.registrar = DidCheqdRegistrar()
 
-    async def _get_key_type(self, key_type: str) -> KeyType:
-        async with self.profile.session() as session:
-            key_types = session.inject(KeyTypes)
-            return key_types.from_key_type(key_type) or ED25519
-
-    def _create_key_pair(self, options: dict, key_type: KeyType) -> Key:
-        seed = options.get("seed")
-        if seed and not self.profile.settings.get("wallet.allow_insecure_seed"):
-            raise WalletError("Insecure seed is not allowed")
-
-        if seed:
-            seed = validate_seed(seed)
-            return Key.from_secret_bytes(key_type, seed)
-        return Key.generate(key_type)
-
     async def register(self, options: dict) -> dict:
         """Register a DID Cheqd."""
         options = options or {}
 
-        key_type = await self._get_key_type(options.get("key_type") or ED25519)
+        seed = options.get("seed")
+        if seed and not self.profile.settings.get("wallet.allow_insecure_seed"):
+            raise WalletError("Insecure seed is not allowed")
+        if seed:
+            seed = validate_seed(seed)
+
+        network = options.get("network") or "testnet"
+        key_type = ED25519
+
         did_validation = DIDParametersValidation(self.profile.inject(DIDMethods))
         did_validation.validate_key_type(CHEQD, key_type)
 
-        key_pair = self._create_key_pair(options, key_type.key_type)
-        verkey_bytes = key_pair.get_public_bytes()
-        verkey = bytes_to_b58(verkey_bytes)
+        async with self.profile.session() as session:
+            try:
+                wallet = session.inject_or(BaseWallet)
+                if not wallet:
+                    raise web.HTTPForbidden(reason="No wallet available")
 
-        public_key_hex = verkey_bytes.hex()
-        network = "testnet"
+                key = await wallet.create_key(key_type, seed)
+                verkey = key.verkey
+                verkey_bytes = b58_to_bytes(verkey)
+                public_key_hex = verkey_bytes.hex()
+            except Exception:
+                raise
 
         try:
             # generate payload
@@ -72,6 +70,9 @@ class DidCheqdManager:
                 sign_req: dict = did_state.get("signingRequest")[0]
                 kid: str = sign_req.get("kid")
                 payload_to_sign: str = sign_req.get("serializedPayload")
+                signature_bytes = await wallet.sign_message(
+                    b64_to_bytes(payload_to_sign), verkey
+                )
                 # publish did
                 publish_did_res = await self.registrar.create(
                     {
@@ -81,11 +82,7 @@ class DidCheqdManager:
                             "signingResponse": [
                                 {
                                     "kid": kid,
-                                    "signature": bytes_to_b64(
-                                        key_pair.sign_message(
-                                            b64_to_bytes(payload_to_sign)
-                                        )
-                                    ),
+                                    "signature": bytes_to_b64(signature_bytes),
                                 }
                             ],
                         },
@@ -98,27 +95,10 @@ class DidCheqdManager:
                 raise WalletError("Error registering DID")
         except Exception:
             raise
-
         async with self.profile.session() as session:
             try:
-                await session.handle.insert_key(verkey, key_pair)
-                await session.handle.insert(
-                    CATEGORY_DID,
-                    did,
-                    value_json={
-                        "did": did,
-                        "method": CHEQD.method_name,
-                        "verkey": verkey,
-                        "verkey_type": ED25519.key_type,
-                        "metadata": {},
-                    },
-                    tags={
-                        "method": CHEQD.method_name,
-                        "verkey": verkey,
-                        "verkey_type": ED25519.key_type,
-                    },
-                )
-            except AskarError as err:
+                await wallet.create_public_did(CHEQD, key_type, seed, did)
+            except WalletError as err:
                 raise WalletError(f"Error registering DID: {err}") from err
 
         return {

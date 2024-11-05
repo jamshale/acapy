@@ -60,7 +60,12 @@ class CreateResponseSchema(OpenAPISchema):
 async def create_cheqd_did(request: web.BaseRequest):
     """Create a Cheqd DID."""
     context: AdminRequestContext = request["context"]
-    body = await request.json()
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
     try:
         return web.json_response(
             (await DidCheqdManager(context.profile).register(body.get("options"))),
