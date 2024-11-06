@@ -64,12 +64,13 @@ class DidCheqdRegistrar:
 
     async def create_resource(self, did: str, options: dict) -> dict:
         """Create a DID Linked Resource."""
+        print(options)
         async with ClientSession() as session:
             try:
                 async with session.post(
                     self.DID_REGISTRAR_BASE_URL + did + "/create-resource", json=options
                 ) as response:
-                    if response.status == 200:
+                    if response.status == 200 or response.status == 201:
                         return await response.json()
                     else:
                         raise web.HTTPInternalServerError()

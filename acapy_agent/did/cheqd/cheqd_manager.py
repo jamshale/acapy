@@ -97,6 +97,8 @@ class DidCheqdManager:
 
                 # create public did record
                 await wallet.create_public_did(CHEQD, key_type, seed, did)
+                # assign verkey to kid
+                await wallet.assign_kid_to_key(verkey, kid)
             except WalletError as err:
                 raise WalletError(f"Error registering DID: {err}") from err
             except Exception:
