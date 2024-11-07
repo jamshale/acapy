@@ -360,7 +360,9 @@ class CheqdDID(Regexp):
     QUERY = r"([?][^#]*)?"
     PARAMS = r"((;[a-zA-Z0-9_.:%-]+=[a-zA-Z0-9_.:%-]*)*)"
 
-    PATTERN = re.compile(rf"^did:cheqd:{NETWORK}:{METHOD_ID}{PARAMS}{QUERY}$")
+    PATTERN = re.compile(
+        rf"^(did:cheqd:{NETWORK}:{METHOD_ID}{PARAMS}{QUERY}|did:cheqd:{NETWORK}:{METHOD_ID}/resources/{UUID}{QUERY})$"
+    )
 
     def __init__(self):
         """Initialize the instance."""

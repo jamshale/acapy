@@ -2,6 +2,8 @@
 
 import logging
 from typing import Optional, Pattern, Sequence
+from uuid import uuid4
+
 from aiohttp import web
 
 from ....config.injection_context import InjectionContext
@@ -11,7 +13,13 @@ from ...base import (
     BaseAnonCredsResolver,
     AnonCredsRegistrationError,
 )
-from ...models.anoncreds_cred_def import CredDef, CredDefResult, GetCredDefResult
+from ...models.anoncreds_cred_def import (
+    CredDef,
+    CredDefResult,
+    GetCredDefResult,
+    CredDefState,
+    CredDefValue,
+)
 from ...models.anoncreds_revocation import (
     GetRevListResult,
     GetRevRegDefResult,
@@ -27,6 +35,8 @@ from ...models.anoncreds_schema import (
     SchemaState,
 )
 from ....did.cheqd.cheqd_manager import DidCheqdManager
+from ....did.cheqd.registrar import DidCheqdRegistrar
+from ....resolver.default.cheqd import CheqdDIDResolver
 from ....messaging.valid import CheqdDID
 from ....wallet.base import BaseWallet
 from ....wallet.jwt import dict_to_b64
@@ -38,6 +48,9 @@ LOGGER = logging.getLogger(__name__)
 class DIDCheqdRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
     """DIDCheqdRegistry."""
 
+    registrar: DidCheqdRegistrar
+    resolver: CheqdDIDResolver
+
     def __init__(self):
         """Initialize an instance.
 
@@ -45,6 +58,8 @@ class DIDCheqdRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             None
 
         """
+        self.registrar = DidCheqdRegistrar()
+        self.resolver = CheqdDIDResolver()
 
     @property
     def supported_identifiers_regex(self) -> Pattern:
@@ -56,13 +71,45 @@ class DIDCheqdRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         """Derive the ID for a schema."""
         return f"{schema.issuer_id}/resources/{resource_id}"
 
+    @staticmethod
+    def make_credential_definition_id(
+        credential_definition: CredDef, resource_id: str
+    ) -> str:
+        """Derive the ID for a credential definition."""
+        return f"{credential_definition.issuer_id}/resources/{resource_id}"
+
+    @staticmethod
+    def split_schema_id(schema_id: str) -> (str, str):
+        """Derive the ID for a schema."""
+        ids = schema_id.split("/")
+        return ids[0], ids[2]
+
     async def setup(self, context: InjectionContext):
         """Setup."""
         print("Successfully registered DIDCheqdRegistry")
 
     async def get_schema(self, profile: Profile, schema_id: str) -> GetSchemaResult:
         """Get a schema from the registry."""
-        raise NotImplementedError()
+        schema = await self.resolver.resolve_resource(schema_id)
+        (did, resource_id) = self.split_schema_id(schema_id)
+
+        anoncreds_schema = AnonCredsSchema(
+            issuer_id=did,
+            attr_names=schema["attrNames"],
+            name=schema["name"],
+            version=schema["version"],
+        )
+
+        return GetSchemaResult(
+            schema_id=schema_id,
+            schema=anoncreds_schema,
+            schema_metadata={},
+            resolution_metadata={
+                "resource_id": resource_id,
+                "resource_name": schema.get("name"),
+                "resource_type": "anonCredsSchema",
+            },
+        )
 
     async def register_schema(
         self,
@@ -98,7 +145,8 @@ class DIDCheqdRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             )
             job_id = resource_state.get("jobId")
             resource = resource_state.get("resource")
-            schema_id = self.make_schema_id(schema, resource.get("id"))
+            resource_id = resource.get("id")
+            schema_id = self.make_schema_id(schema, resource_id)
         except Exception as err:
             raise AnonCredsRegistrationError(f"{err}")
         return SchemaResult(
@@ -109,7 +157,7 @@ class DIDCheqdRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
                 schema=schema,
             ),
             registration_metadata={
-                "resource_id": schema_id,
+                "resource_id": resource_id,
                 "resource_name": resource_name,
                 "resource_type": resource_type,
             },
@@ -119,7 +167,29 @@ class DIDCheqdRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         self, profile: Profile, credential_definition_id: str
     ) -> GetCredDefResult:
         """Get a credential definition from the registry."""
-        raise NotImplementedError()
+        credential_definition = await self.resolver.resolve_resource(
+            credential_definition_id
+        )
+        (did, resource_id) = self.split_schema_id(credential_definition_id)
+
+        anoncreds_credential_definition = CredDef(
+            issuer_id=did,
+            schema_id=credential_definition["schemaId"],
+            type=credential_definition["type"],
+            tag=credential_definition["tag"],
+            value=CredDefValue.deserialize(credential_definition["value"]),
+        )
+
+        return GetCredDefResult(
+            credential_definition_id=credential_definition_id,
+            credential_definition=anoncreds_credential_definition,
+            credential_definition_metadata={},
+            resolution_metadata={
+                "resource_id": resource_id,
+                "resource_name": credential_definition.get("tag"),
+                "resource_type": "anonCredsSchema",
+            },
+        )
 
     async def register_credential_definition(
         self,
@@ -129,7 +199,48 @@ class DIDCheqdRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         options: Optional[dict] = None,
     ) -> CredDefResult:
         """Register a credential definition on the registry."""
-        raise NotImplementedError()
+        resource_type = "anonCredsCredDef"
+        resource_name = credential_definition.tag
+
+        cred_def = {
+            "name": resource_name,
+            "type": resource_type,
+            "data": dict_to_b64(
+                {
+                    "type": credential_definition.type,
+                    "tag": credential_definition.tag,
+                    "value": credential_definition.value.serialize(),
+                    "schemaId": schema.schema_id,
+                }
+            ),
+            "version": str(uuid4()),
+        }
+
+        resource_state = await self._create_and_publish_resource(
+            profile, credential_definition.issuer_id, cred_def
+        )
+        job_id = resource_state.get("jobId")
+        resource = resource_state.get("resource")
+        resource_id = resource.get("id")
+
+        credential_definition_id = self.make_credential_definition_id(
+            credential_definition, resource_id
+        )
+
+        return CredDefResult(
+            job_id=job_id,
+            credential_definition_state=CredDefState(
+                state=CredDefState.STATE_WAIT,
+                credential_definition_id=credential_definition_id,
+                credential_definition=credential_definition,
+            ),
+            registration_metadata={
+                "resource_id": resource_id,
+                "resource_name": resource_name,
+                "resource_type": resource_type,
+            },
+            credential_definition_metadata={},
+        )
 
     async def get_revocation_registry_definition(
         self, profile: Profile, revocation_registry_id: str
