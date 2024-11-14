@@ -1,29 +1,37 @@
 """DID manager for Cheqd."""
 
+import logging
+
 from aiohttp import web
-from .registrar import DidCheqdRegistrar
+
 from ...core.profile import Profile
+from ...resolver.default.cheqd import CheqdDIDResolver
 from ...wallet.base import BaseWallet
 from ...wallet.crypto import validate_seed
 from ...wallet.did_method import CHEQD, DIDMethods
 from ...wallet.did_parameters_validation import DIDParametersValidation
 from ...wallet.error import WalletError
 from ...wallet.key_type import ED25519
-from ...wallet.util import b64_to_bytes, bytes_to_b64, b58_to_bytes
+from ...wallet.util import b58_to_bytes, b64_to_bytes, bytes_to_b64
+from .registrar import DidCheqdRegistrar
+
+LOGGER = logging.getLogger(__name__)
 
 
 class DidCheqdManager:
     """DID manager for Cheqd."""
 
     registrar: DidCheqdRegistrar
+    resolver: CheqdDIDResolver
 
     def __init__(self, profile: Profile) -> None:
-        """Initialize the DID  manager."""
+        """Initialize the Cheqd DID manager."""
         self.profile = profile
         self.registrar = DidCheqdRegistrar()
+        self.resolver = CheqdDIDResolver()
 
     async def register(self, options: dict) -> dict:
-        """Register a DID Cheqd."""
+        """Register a Cheqd DID."""
         options = options or {}
 
         seed = options.get("seed")
@@ -106,4 +114,163 @@ class DidCheqdManager:
         return {
             "did": did,
             "verkey": verkey,
+        }
+
+    async def update(
+        self,
+        did: str,
+        services: list,
+        verification_methods: list = None,
+        authentications: list = None,
+    ) -> dict:
+        """Update a Cheqd DID."""
+
+        if authentications is None:
+            authentications = []
+        if verification_methods is None:
+            verification_methods = []
+
+        async with self.profile.session() as session:
+            try:
+                wallet = session.inject(BaseWallet)
+                if not wallet:
+                    raise web.HTTPForbidden(reason="No wallet available")
+
+                # Get the current didDocument for update request
+                did_doc = await self.resolver.resolve(self.profile, did)
+
+                # Get current services, verificationMethods and authentications
+                current_services = did_doc.get("service", [])
+                current_ver_methods = did_doc.get("verificationMethod", [])
+                current_auths = did_doc.get("authentication", [])
+
+                # Append the new services, verificationMethiods and authentications
+                # TODO verify if the params need to be replaced
+                current_services.extend(services)
+                if verification_methods:
+                    current_ver_methods.extend(verification_methods)
+                if authentications:
+                    current_auths.extend(authentications)
+
+                did_doc["service"] = current_services
+                did_doc["verificationMethod"] = current_ver_methods
+                did_doc["authentication"] = current_auths
+
+                LOGGER.debug("Updated DID Doc: %s", did_doc)
+                # request deactivate did
+                update_request_res = await self.registrar.update(
+                    {
+                        "did": did,
+                        "didDocumentOperation": ["setDidDocument"],
+                        "didDocument": [did_doc],
+                    }
+                )
+
+                job_id: str = update_request_res.get("jobId")
+                did_state = update_request_res.get("didState")
+
+                if did_state.get("state") == "action":
+                    sign_req: dict = did_state.get("signingRequest")[0]
+                    kid: str = sign_req.get("kid")
+                    key = await wallet.get_key_by_kid(kid)
+                    verkey = key.verkey
+                    payload_to_sign: str = sign_req.get("serializedPayload")
+                    # sign payload
+                    signature_bytes = await wallet.sign_message(
+                        b64_to_bytes(payload_to_sign), verkey
+                    )
+                    # submit signed update
+                    publish_did_res = await self.registrar.update(
+                        {
+                            "jobId": job_id,
+                            "secret": {
+                                "signingResponse": [
+                                    {
+                                        "kid": kid,
+                                        "signature": bytes_to_b64(signature_bytes),
+                                    }
+                                ],
+                            },
+                        }
+                    )
+                    publish_did_state = publish_did_res.get("didState")
+
+                    if publish_did_state.get("state") != "finished":
+                        raise WalletError(
+                            f"Error publishing DID \
+                                update {publish_did_state.get("description")}"
+                        )
+                else:
+                    raise WalletError(f"Error updating DID {did_state.get("reason")}")
+            # TODO update new keys to wallet if necessary
+            except WalletError as err:
+                raise web.HTTPBadRequest(reason=(f"Error: {err.message}"))
+            except Exception:
+                raise
+        return {
+            "did": did,
+            "did_state": publish_did_state.get("state"),
+        }
+
+    async def deactivate(self, did: str) -> dict:
+        """Deactivate a Cheqd DID."""
+        LOGGER.debug("Deactivate did: %s", did)
+
+        async with self.profile.session() as session:
+            try:
+                wallet = session.inject(BaseWallet)
+                if not wallet:
+                    raise web.HTTPForbidden(reason="No wallet available")
+
+                # request deactivate did
+                deactivate_request_res = await self.registrar.deactivate({"did": did})
+
+                job_id: str = deactivate_request_res.get("jobId")
+                did_state = deactivate_request_res.get("didState")
+
+                if did_state.get("state") == "action":
+                    sign_req: dict = did_state.get("signingRequest")[0]
+                    kid: str = sign_req.get("kid")
+                    key = await wallet.get_key_by_kid(kid)
+                    verkey = key.verkey
+                    payload_to_sign: str = sign_req.get("serializedPayload")
+                    # sign payload
+                    signature_bytes = await wallet.sign_message(
+                        b64_to_bytes(payload_to_sign), verkey
+                    )
+                    # submit signed deactivate
+                    publish_did_res = await self.registrar.deactivate(
+                        {
+                            "jobId": job_id,
+                            "secret": {
+                                "signingResponse": [
+                                    {
+                                        "kid": kid,
+                                        "signature": bytes_to_b64(signature_bytes),
+                                    }
+                                ],
+                            },
+                        }
+                    )
+                    publish_did_state = publish_did_res.get("didState")
+
+                    if publish_did_state.get("state") != "finished":
+                        raise WalletError(
+                            f"Error publishing DID \
+                                deactivate {publish_did_state.get("description")}"
+                        )
+                else:
+                    raise WalletError(f"Error deactivating DID {did_state.get("reason")}")
+                # update local did metadata
+                did_info = await wallet.get_local_did(did)
+                metadata = {**did_info.metadata, "deactivated": True}
+                await wallet.replace_local_did_metadata(did, metadata)
+            except WalletError as err:
+                raise web.HTTPBadRequest(reason=(f"Error: {err.message}"))
+            except Exception:
+                raise
+        return {
+            "did": did,
+            "did_document": publish_did_state.get("didDocument"),
+            "did_document_metadata": metadata,
         }

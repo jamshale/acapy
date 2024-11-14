@@ -1,14 +1,14 @@
 """Cheqd DID Resolver."""
 
 import json
+from typing import Optional, Pattern, Sequence, Text
 
 from aiohttp import ClientSession
 from pydid import DIDDocument
-from typing import Optional, Pattern, Sequence, Text
 
-from ...messaging.valid import CheqdDID
 from ...config.injection_context import InjectionContext
 from ...core.profile import Profile
+from ...messaging.valid import CheqdDID
 from ..base import BaseDIDResolver, DIDNotFound, ResolverError, ResolverType
 
 
