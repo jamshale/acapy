@@ -116,19 +116,12 @@ class DidCheqdManager:
             "verkey": verkey,
         }
 
-    async def update(
-        self,
-        did: str,
-        services: list,
-        verification_methods: list = None,
-        authentications: list = None,
-    ) -> dict:
+    async def update(self, did: str, options: dict) -> dict:
         """Update a Cheqd DID."""
 
-        if authentications is None:
-            authentications = []
-        if verification_methods is None:
-            verification_methods = []
+        authentications = options.get("authentications") or []
+        verification_methods = options.get("verification_methods") or []
+        services = options.get("services")
 
         async with self.profile.session() as session:
             try:

@@ -97,22 +97,25 @@ class UpdateRequestSchema(OpenAPISchema):
 
     EXAMPLE = {
         "did": CHEQD_DID_EXAMPLE,
-        "services": [
-            {
-                "id": CHEQD_DID_EXAMPLE + "#service-1",
-                "type": "MessagingService",
-                "serviceEndpoint": ["https://example.com/service"],
-            }
-        ],
-        "verification_methods": [
-            {
-                "id": CHEQD_DID_EXAMPLE + "#key-1",
-                "type": "Ed25519VerificationKey2018",
-                "controller": CHEQD_DID_EXAMPLE,
-                "publicKeyMultibase": "z6Mk...",
-            }
-        ],
-        "authentications": [CHEQD_DID_EXAMPLE + "#key-1"],
+        "options": {
+            "services": [
+                {
+                    "id": CHEQD_DID_EXAMPLE + "#service-1",
+                    "type": "MessagingService",
+                    "serviceEndpoint": ["https://example.com/service"],
+                }
+            ],
+            "verification_methods": [
+                {
+                    "id": CHEQD_DID_EXAMPLE + "#key-1",
+                    "type": "Ed25519VerificationKey2018",
+                    "controller": CHEQD_DID_EXAMPLE,
+                    "publicKeyMultibase": "z6Mk...",
+                }
+            ],
+            "authentications": [CHEQD_DID_EXAMPLE + "#key-1"],
+        },
+        "features": {},
     }
 
     did = fields.Str(
@@ -120,55 +123,90 @@ class UpdateRequestSchema(OpenAPISchema):
         validate=CHEQD_DID_VALIDATE,
         metadata={"description": "DID to update"},
     )
-    services = fields.List(
-        fields.Nested(
-            Schema.from_dict(
-                {
-                    "id": fields.Str(
+    options = fields.Nested(
+        Schema.from_dict(
+            {
+                "services": fields.List(
+                    fields.Nested(
+                        Schema.from_dict(
+                            {
+                                "id": fields.Str(
+                                    required=True,
+                                    metadata={"description": "Service ID"},
+                                ),
+                                "type": fields.Str(
+                                    required=True,
+                                    metadata={"description": "Service type"},
+                                ),
+                                "serviceEndpoint": fields.List(
+                                    fields.Str(
+                                        metadata={"description": "Service endpoint URL"}
+                                    ),
+                                    required=True,
+                                    metadata={
+                                        "description": "Array of Service endpoints"
+                                    },
+                                ),
+                            },
+                        ),
                         required=True,
-                        metadata={"description": "Service ID"},
-                    ),
-                    "type": fields.Str(
+                        metadata={
+                            "description": "Array of services to be associated with DID"
+                        },
+                    )
+                ),
+                "verification_methods": fields.List(
+                    fields.Nested(
+                        Schema.from_dict(
+                            {
+                                "id": fields.Str(
+                                    required=True,
+                                    metadata={"description": "Verification method ID"},
+                                ),
+                                "type": fields.Str(
+                                    required=True,
+                                    metadata={"description": "Verification method type"},
+                                ),
+                                "controller": fields.Str(
+                                    required=True,
+                                    metadata={
+                                        "description": "Verification controller DID"
+                                    },
+                                ),
+                                "publicKeyMultibase": fields.Str(
+                                    metadata={
+                                        "description": "Public key in multibase format"
+                                    }
+                                ),
+                            },
+                        ),
+                        required=False,
+                        metadata={
+                            "description": "Optional array of verification methods to be \
+                            associated with DID"
+                        },
+                    )
+                ),
+                "authentications": fields.List(
+                    fields.Str(
                         required=True,
-                        metadata={"description": "Service type"},
+                        metadata={"description": "Authentication ID"},
                     ),
-                    "serviceEndpoint": fields.List(
-                        fields.Str(metadata={"description": "Service endpoint URL"})
-                    ),
-                },
-            ),
-            required=True,
+                    required=False,
+                    metadata={
+                        "description": "Optional array of Authentications to be \
+                            associated with DID"
+                    },
+                ),
+            }
         )
     )
-    verification_methods = fields.List(
-        fields.Nested(
-            Schema.from_dict(
-                {
-                    "id": fields.Str(
-                        required=True,
-                        metadata={"description": "Verification method ID"},
-                    ),
-                    "type": fields.Str(
-                        required=True,
-                        metadata={"description": "Verification method type"},
-                    ),
-                    "controller": fields.Str(
-                        required=True,
-                        metadata={"description": "Verification controller DID"},
-                    ),
-                    "publicKeyMultibase": fields.Str(
-                        metadata={"description": "Public key in multibase format"}
-                    ),
-                },
-            ),
-            required=False,
-        )
-    )
-    authentications = fields.List(
-        fields.Str(
-            required=True,
-            metadata={"description": "Authentication method ID"},
-        )
+    features = fields.Dict(
+        required=False,
+        metadata={
+            "description": "Additional features to enable for the did.",
+            "example": "{}",
+        },
     )
 
 
@@ -226,9 +264,7 @@ async def update_cheqd_did(request: web.BaseRequest):
         return web.json_response(
             (
                 await DidCheqdManager(context.profile).update(
-                    body.get("did"),
-                    body.get("services"),
-                    body.get("verification_methods", body.get("authentications")),
+                    body.get("did"), body.get("options")
                 )
             ),
         )
@@ -262,8 +298,8 @@ async def register(app: web.Application):
     app.add_routes(
         [
             web.post("/did/cheqd/create", create_cheqd_did),
-            web.post("/did/cheqd/update", update_cheqd_did),
-            web.post("/did/cheqd/deactivate", deactivate_cheqd_did),
+            web.put("/did/cheqd/update", update_cheqd_did),
+            web.delete("/did/cheqd/deactivate", deactivate_cheqd_did),
         ]
     )
 
