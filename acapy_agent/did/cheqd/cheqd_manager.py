@@ -5,6 +5,7 @@ import logging
 from aiohttp import web
 
 from ...core.profile import Profile
+from ...resolver.base import DIDNotFound
 from ...resolver.default.cheqd import CheqdDIDResolver
 from ...wallet.base import BaseWallet
 from ...wallet.crypto import validate_seed
@@ -116,12 +117,10 @@ class DidCheqdManager:
             "verkey": verkey,
         }
 
-    async def update(self, did: str, options: dict) -> dict:
+    async def update(
+        self, did: str, didOperation: str, didDoc: dict, options: dict
+    ) -> dict:
         """Update a Cheqd DID."""
-
-        authentications = options.get("authentications") or []
-        verification_methods = options.get("verification_methods") or []
-        services = options.get("services")
 
         async with self.profile.session() as session:
             try:
@@ -129,33 +128,14 @@ class DidCheqdManager:
                 if not wallet:
                     raise web.HTTPForbidden(reason="No wallet available")
 
-                # Get the current didDocument for update request
-                did_doc = await self.resolver.resolve(self.profile, did)
-
-                # Get current services, verificationMethods and authentications
-                current_services = did_doc.get("service", [])
-                current_ver_methods = did_doc.get("verificationMethod", [])
-                current_auths = did_doc.get("authentication", [])
-
-                # Append the new services, verificationMethiods and authentications
-                # TODO verify if the params need to be replaced
-                current_services.extend(services)
-                if verification_methods:
-                    current_ver_methods.extend(verification_methods)
-                if authentications:
-                    current_auths.extend(authentications)
-
-                did_doc["service"] = current_services
-                did_doc["verificationMethod"] = current_ver_methods
-                did_doc["authentication"] = current_auths
-
-                LOGGER.debug("Updated DID Doc: %s", did_doc)
+                # Check if did is valid
+                await self.resolver.resolve(self.profile, did)
                 # request deactivate did
                 update_request_res = await self.registrar.update(
                     {
                         "did": did,
-                        "didDocumentOperation": ["setDidDocument"],
-                        "didDocument": [did_doc],
+                        "didDocumentOperation": [didOperation],
+                        "didDocument": [didDoc],
                     }
                 )
 
@@ -198,6 +178,8 @@ class DidCheqdManager:
             # TODO update new keys to wallet if necessary
             except WalletError as err:
                 raise web.HTTPBadRequest(reason=(f"Error: {err.message}"))
+            except DIDNotFound as err:
+                raise web.HTTPBadRequest(reason=(f"DID Not found: {err.message}"))
             except Exception:
                 raise
         return {
@@ -214,10 +196,12 @@ class DidCheqdManager:
                 wallet = session.inject(BaseWallet)
                 if not wallet:
                     raise web.HTTPForbidden(reason="No wallet available")
-
+                # Check if did is valid
+                await self.resolver.resolve(self.profile, did)
                 # request deactivate did
                 deactivate_request_res = await self.registrar.deactivate({"did": did})
-
+                LOGGER.debug("XXXXXXXX")
+                LOGGER.debug(deactivate_request_res)
                 job_id: str = deactivate_request_res.get("jobId")
                 did_state = deactivate_request_res.get("didState")
 
@@ -245,6 +229,8 @@ class DidCheqdManager:
                             },
                         }
                     )
+                    LOGGER.debug("ZZZZZZZZZ")
+                    LOGGER.debug(publish_did_res)
                     publish_did_state = publish_did_res.get("didState")
 
                     if publish_did_state.get("state") != "finished":
@@ -260,6 +246,8 @@ class DidCheqdManager:
                 await wallet.replace_local_did_metadata(did, metadata)
             except WalletError as err:
                 raise web.HTTPBadRequest(reason=(f"Error: {err.message}"))
+            except DIDNotFound as err:
+                raise web.HTTPBadRequest(reason=(f"DID Not found: {err.message}"))
             except Exception:
                 raise
         return {

@@ -4,7 +4,7 @@ from http import HTTPStatus
 
 from aiohttp import web
 from aiohttp_apispec import docs, request_schema, response_schema
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields, validate
 
 from ...admin.decorators.auth import tenant_authentication
 from ...admin.request_context import AdminRequestContext
@@ -12,6 +12,75 @@ from ...did.cheqd.cheqd_manager import DidCheqdManager
 from ...messaging.models.openapi import OpenAPISchema
 from ...messaging.valid import CHEQD_DID_EXAMPLE, CHEQD_DID_VALIDATE
 from ...wallet.error import WalletError
+
+
+class VerificationMethodSchema(Schema):
+    """VerificationMethod Schema."""
+
+    id = fields.Str(
+        required=True,
+        metadata={
+            "description": "Verification Method ID",
+            "example": "did:example:123#key-1",
+        },
+    )
+    type = fields.Str(
+        required=True,
+        metadata={
+            "description": "Type of Verification Method",
+            "example": "Ed25519VerificationKey2018",
+        },
+    )
+    publicKeyMultibase = fields.Str(
+        required=True,
+        metadata={"description": "Public Key in multibase format", "example": "z6Mk..."},
+    )
+    controller = fields.Str(
+        required=True,
+        metadata={"description": "Verification controller DID"},
+    )
+
+
+class ServiceSchema(Schema):
+    """Service Schema."""
+
+    id = fields.Str(
+        required=True,
+        metadata={"description": "Service ID", "example": "did:example:123#service-1"},
+    )
+    type = fields.Str(
+        required=True,
+        metadata={"description": "Service Type", "example": "MessagingService"},
+    )
+    serviceEndpoint = fields.List(
+        fields.Str(metadata={"description": "Service endpoint URL"}),
+        required=True,
+        metadata={"description": "Array of Service endpoints"},
+    )
+
+
+class DIDDocumentSchema(Schema):
+    """DIDDocument Schema."""
+
+    id = fields.Str(
+        required=True, metadata={"description": "DID ID", "example": "did:example:123"}
+    )
+    controller = fields.List(
+        fields.Str,
+        required=False,
+        metadata={"description": "DID Document controllers"},
+    )
+    verificationMethod = fields.List(
+        fields.Nested(VerificationMethodSchema),
+        required=False,
+        metadata={"description": "Verification Methods"},
+    )
+    authentication = fields.List(
+        fields.Str, required=False, metadata={"description": "Authentication Methods"}
+    )
+    service = fields.List(
+        fields.Nested(ServiceSchema), required=False, metadata={"description": "Services"}
+    )
 
 
 class CreateRequestSchema(OpenAPISchema):
@@ -62,6 +131,13 @@ class DeactivateRequestSchema(OpenAPISchema):
         validate=CHEQD_DID_VALIDATE,
         metadata={"description": "DID to deactivate", "example": CHEQD_DID_EXAMPLE},
     )
+    options = fields.Dict(
+        required=False,
+        metadata={
+            "description": "Additional configuration options",
+            "example": {"network": "testnet"},
+        },
+    )
 
 
 class DeactivateResponseSchema(OpenAPISchema):
@@ -97,15 +173,11 @@ class UpdateRequestSchema(OpenAPISchema):
 
     EXAMPLE = {
         "did": CHEQD_DID_EXAMPLE,
-        "options": {
-            "services": [
-                {
-                    "id": CHEQD_DID_EXAMPLE + "#service-1",
-                    "type": "MessagingService",
-                    "serviceEndpoint": ["https://example.com/service"],
-                }
-            ],
-            "verification_methods": [
+        "didDocumentOperation": "setDidDocument",
+        "didDocument": {
+            "id": CHEQD_DID_EXAMPLE,
+            "controller": [CHEQD_DID_EXAMPLE],
+            "verificationMethod": [
                 {
                     "id": CHEQD_DID_EXAMPLE + "#key-1",
                     "type": "Ed25519VerificationKey2018",
@@ -113,9 +185,16 @@ class UpdateRequestSchema(OpenAPISchema):
                     "publicKeyMultibase": "z6Mk...",
                 }
             ],
-            "authentications": [CHEQD_DID_EXAMPLE + "#key-1"],
+            "authentication": [CHEQD_DID_EXAMPLE + "#key-1"],
+            "service": [
+                {
+                    "id": CHEQD_DID_EXAMPLE + "#service-1",
+                    "type": "MessagingService",
+                    "serviceEndpoint": ["https://example.com/service"],
+                }
+            ],
         },
-        "features": {},
+        "options": {"network": "testnet"},
     }
 
     did = fields.Str(
@@ -123,90 +202,27 @@ class UpdateRequestSchema(OpenAPISchema):
         validate=CHEQD_DID_VALIDATE,
         metadata={"description": "DID to update"},
     )
-    options = fields.Nested(
-        Schema.from_dict(
-            {
-                "services": fields.List(
-                    fields.Nested(
-                        Schema.from_dict(
-                            {
-                                "id": fields.Str(
-                                    required=True,
-                                    metadata={"description": "Service ID"},
-                                ),
-                                "type": fields.Str(
-                                    required=True,
-                                    metadata={"description": "Service type"},
-                                ),
-                                "serviceEndpoint": fields.List(
-                                    fields.Str(
-                                        metadata={"description": "Service endpoint URL"}
-                                    ),
-                                    required=True,
-                                    metadata={
-                                        "description": "Array of Service endpoints"
-                                    },
-                                ),
-                            },
-                        ),
-                        required=True,
-                        metadata={
-                            "description": "Array of services to be associated with DID"
-                        },
-                    )
-                ),
-                "verification_methods": fields.List(
-                    fields.Nested(
-                        Schema.from_dict(
-                            {
-                                "id": fields.Str(
-                                    required=True,
-                                    metadata={"description": "Verification method ID"},
-                                ),
-                                "type": fields.Str(
-                                    required=True,
-                                    metadata={"description": "Verification method type"},
-                                ),
-                                "controller": fields.Str(
-                                    required=True,
-                                    metadata={
-                                        "description": "Verification controller DID"
-                                    },
-                                ),
-                                "publicKeyMultibase": fields.Str(
-                                    metadata={
-                                        "description": "Public key in multibase format"
-                                    }
-                                ),
-                            },
-                        ),
-                        required=False,
-                        metadata={
-                            "description": "Optional array of verification methods to be \
-                            associated with DID"
-                        },
-                    )
-                ),
-                "authentications": fields.List(
-                    fields.Str(
-                        required=True,
-                        metadata={"description": "Authentication ID"},
-                    ),
-                    required=False,
-                    metadata={
-                        "description": "Optional array of Authentications to be \
-                            associated with DID"
-                    },
-                ),
-            }
-        )
-    )
-    features = fields.Dict(
+    options = fields.Dict(
         required=False,
         metadata={
-            "description": "Additional features to enable for the did.",
-            "example": "{}",
+            "description": "Additional configuration options",
+            "example": {"network": "testnet"},
         },
+    )
+    didDocumentOperation = fields.Str(
+        required=True,
+        validate=validate.OneOf(
+            ["setDidDocument", "removeFromDidDocument", "addToDidDocument"]
+        ),
+        metadata={
+            "description": "Allowed operations on the DID Document.",
+            "example": "setDidDocument",
+        },
+    )
+    didDocument = fields.Nested(
+        DIDDocumentSchema,
+        required=True,
+        metadata={"description": "DID Document to update"},
     )
 
 
@@ -264,7 +280,10 @@ async def update_cheqd_did(request: web.BaseRequest):
         return web.json_response(
             (
                 await DidCheqdManager(context.profile).update(
-                    body.get("did"), body.get("options")
+                    body.get("did"),
+                    body.get("didDocumentOperation"),
+                    body.get("didDocument"),
+                    body.get("options"),
                 )
             ),
         )
