@@ -31,6 +31,45 @@ class DidCheqdManager:
         self.registrar = DidCheqdRegistrar()
         self.resolver = CheqdDIDResolver()
 
+    async def sign_requests(wallet, signing_requests, verkey=None):
+        """Sign all requests in the siginingRequests array.
+
+        Args:
+            wallet: Wallet instance used to sign messages.
+            signing_requests: List of signing request dictionaries.
+            verkey (optional): Pre-determined verkey to use for signing. \
+                If None, retrieve verkey from the wallet.
+
+        Returns:
+            List of signed responses, each containing 'kid' and 'signature'.
+        """
+        signed_responses = []
+        for sign_req in signing_requests:
+            kid = sign_req.get("kid")
+            payload_to_sign = sign_req.get("serializedPayload")
+            if verkey:
+                # assign verkey to kid in wallet
+                await wallet.assign_kid_to_key(verkey, kid)
+            if not verkey:
+                # retrive verkey from wallet
+                key = await wallet.get_key_by_kid(kid)
+                if not key:
+                    raise ValueError(f"No key found for kid: {kid}")
+                verkey = key.verkey
+            # sign payload
+            signature_bytes = await wallet.sign_message(
+                b64_to_bytes(payload_to_sign), verkey
+            )
+
+            signed_responses.append(
+                {
+                    "kid": kid,
+                    "signature": bytes_to_b64(signature_bytes),
+                }
+            )
+
+        return signed_responses
+
     async def register(self, options: dict) -> dict:
         """Register a Cheqd DID."""
         options = options or {}
@@ -75,11 +114,12 @@ class DidCheqdManager:
                 job_id: str = create_request_res.get("jobId")
                 did_state = create_request_res.get("didState")
                 if did_state.get("state") == "action":
-                    sign_req: dict = did_state.get("signingRequest")[0]
-                    kid: str = sign_req.get("kid")
-                    payload_to_sign: str = sign_req.get("serializedPayload")
-                    signature_bytes = await wallet.sign_message(
-                        b64_to_bytes(payload_to_sign), verkey
+                    signing_requests: dict = did_state.get("signingRequest")
+                    if not signing_requests:
+                        raise WalletError("No signing requests available for create.")
+                    # sign all requests
+                    signed_responses = await DidCheqdManager.sign_requests(
+                        wallet, signing_requests, verkey
                     )
                     # publish did
                     publish_did_res = await self.registrar.create(
@@ -87,12 +127,7 @@ class DidCheqdManager:
                             "jobId": job_id,
                             "network": network,
                             "secret": {
-                                "signingResponse": [
-                                    {
-                                        "kid": kid,
-                                        "signature": bytes_to_b64(signature_bytes),
-                                    }
-                                ],
+                                "signingResponse": signed_responses,
                             },
                         }
                     )
@@ -106,20 +141,21 @@ class DidCheqdManager:
 
                 # create public did record
                 await wallet.create_public_did(CHEQD, key_type, seed, did)
-                # assign verkey to kid
-                await wallet.assign_kid_to_key(verkey, kid)
-            except WalletError as err:
-                raise WalletError(f"Error registering DID: {err}") from err
-            except Exception:
-                raise
-        return {
-            "did": did,
-            "verkey": verkey,
-        }
 
-    async def update(
-        self, did: str, didOperation: str, didDoc: dict, options: dict
-    ) -> dict:
+            except WalletError as err:
+                return web.json_response({"error": f"Wallet Error: {err}"}, status=400)
+            except Exception as e:
+                return web.json_response(
+                    {"error": f"An unexpected error occurred: {str(e)}"}, status=500
+                )
+        return web.json_response(
+            {
+                "did": did,
+                "verkey": verkey,
+            }
+        )
+
+    async def update(self, did: str, didDoc: dict, options: dict) -> dict:
         """Update a Cheqd DID."""
 
         async with self.profile.session() as session:
@@ -128,13 +164,18 @@ class DidCheqdManager:
                 if not wallet:
                     raise web.HTTPForbidden(reason="No wallet available")
 
-                # Check if did is valid
-                await self.resolver.resolve(self.profile, did)
+                # Resolve the DID and ensure it is not deactivated and is valid
+                did_doc = await self.resolver.resolve(self.profile, did)
+                if not did_doc or did_doc.get("deactivated"):
+                    raise DIDNotFound("DID is already deactivated or not found.")
+
                 # request deactivate did
+                # TODO If registrar supports other operation,
+                #       take didDocumentOperation as input
                 update_request_res = await self.registrar.update(
                     {
                         "did": did,
-                        "didDocumentOperation": [didOperation],
+                        "didDocumentOperation": ["setDidDocument"],
                         "didDocument": [didDoc],
                     }
                 )
@@ -143,26 +184,20 @@ class DidCheqdManager:
                 did_state = update_request_res.get("didState")
 
                 if did_state.get("state") == "action":
-                    sign_req: dict = did_state.get("signingRequest")[0]
-                    kid: str = sign_req.get("kid")
-                    key = await wallet.get_key_by_kid(kid)
-                    verkey = key.verkey
-                    payload_to_sign: str = sign_req.get("serializedPayload")
-                    # sign payload
-                    signature_bytes = await wallet.sign_message(
-                        b64_to_bytes(payload_to_sign), verkey
+                    signing_requests: dict = did_state.get("signingRequest")
+                    if not signing_requests:
+                        raise WalletError("No signing requests available for update.")
+                    # sign all requests
+                    signed_responses = await DidCheqdManager.sign_requests(
+                        wallet, signing_requests
                     )
+
                     # submit signed update
                     publish_did_res = await self.registrar.update(
                         {
                             "jobId": job_id,
                             "secret": {
-                                "signingResponse": [
-                                    {
-                                        "kid": kid,
-                                        "signature": bytes_to_b64(signature_bytes),
-                                    }
-                                ],
+                                "signingResponse": signed_responses,
                             },
                         }
                     )
@@ -177,15 +212,19 @@ class DidCheqdManager:
                     raise WalletError(f"Error updating DID {did_state.get("reason")}")
             # TODO update new keys to wallet if necessary
             except WalletError as err:
-                raise web.HTTPBadRequest(reason=(f"Error: {err.message}"))
+                return web.json_response({"error": f"Wallet Error: {err}"}, status=400)
             except DIDNotFound as err:
-                raise web.HTTPBadRequest(reason=(f"DID Not found: {err.message}"))
-            except Exception:
-                raise
-        return {
-            "did": did,
-            "did_state": publish_did_state.get("state"),
-        }
+                return web.json_response({"error": f"DID Not Found: {err}"}, status=404)
+            except Exception as e:
+                return web.json_response(
+                    {"error": f"An unexpected error occurred: {str(e)}"}, status=500
+                )
+        return web.json_response(
+            {
+                "did": did,
+                "did_state": publish_did_state.get("state"),
+            }
+        )
 
     async def deactivate(self, did: str) -> dict:
         """Deactivate a Cheqd DID."""
@@ -196,41 +235,35 @@ class DidCheqdManager:
                 wallet = session.inject(BaseWallet)
                 if not wallet:
                     raise web.HTTPForbidden(reason="No wallet available")
-                # Check if did is valid
-                await self.resolver.resolve(self.profile, did)
+                # Resolve the DID and ensure it is not deactivated and is valid
+                did_doc = await self.resolver.resolve(self.profile, did)
+                if not did_doc or did_doc.get("deactivated"):
+                    raise DIDNotFound("DID is already deactivated or not found.")
+
                 # request deactivate did
                 deactivate_request_res = await self.registrar.deactivate({"did": did})
-                LOGGER.debug("XXXXXXXX")
-                LOGGER.debug(deactivate_request_res)
+
                 job_id: str = deactivate_request_res.get("jobId")
                 did_state = deactivate_request_res.get("didState")
 
                 if did_state.get("state") == "action":
-                    sign_req: dict = did_state.get("signingRequest")[0]
-                    kid: str = sign_req.get("kid")
-                    key = await wallet.get_key_by_kid(kid)
-                    verkey = key.verkey
-                    payload_to_sign: str = sign_req.get("serializedPayload")
-                    # sign payload
-                    signature_bytes = await wallet.sign_message(
-                        b64_to_bytes(payload_to_sign), verkey
+                    signing_requests = did_state.get("signingRequest")
+                    if not signing_requests:
+                        raise WalletError("No signing requests available for update.")
+                    # sign all requests
+                    signed_responses = await DidCheqdManager.sign_requests(
+                        wallet, signing_requests
                     )
                     # submit signed deactivate
                     publish_did_res = await self.registrar.deactivate(
                         {
                             "jobId": job_id,
                             "secret": {
-                                "signingResponse": [
-                                    {
-                                        "kid": kid,
-                                        "signature": bytes_to_b64(signature_bytes),
-                                    }
-                                ],
+                                "signingResponse": signed_responses,
                             },
                         }
                     )
-                    LOGGER.debug("ZZZZZZZZZ")
-                    LOGGER.debug(publish_did_res)
+
                     publish_did_state = publish_did_res.get("didState")
 
                     if publish_did_state.get("state") != "finished":
@@ -245,13 +278,17 @@ class DidCheqdManager:
                 metadata = {**did_info.metadata, "deactivated": True}
                 await wallet.replace_local_did_metadata(did, metadata)
             except WalletError as err:
-                raise web.HTTPBadRequest(reason=(f"Error: {err.message}"))
+                return web.json_response({"error": f"Wallet Error: {err}"}, status=400)
             except DIDNotFound as err:
-                raise web.HTTPBadRequest(reason=(f"DID Not found: {err.message}"))
-            except Exception:
-                raise
-        return {
-            "did": did,
-            "did_document": publish_did_state.get("didDocument"),
-            "did_document_metadata": metadata,
-        }
+                return web.json_response({"error": f"DID Not Found: {err}"}, status=404)
+            except Exception as e:
+                return web.json_response(
+                    {"error": f"An unexpected error occurred: {str(e)}"}, status=500
+                )
+        return web.json_response(
+            {
+                "did": did,
+                "did_document": publish_did_state.get("didDocument"),
+                "did_document_metadata": metadata,
+            }
+        )

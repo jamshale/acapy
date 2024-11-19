@@ -45,9 +45,17 @@ class CheqdDIDResolver(BaseDIDResolver):
                         # Validate DIDDoc with pyDID
                         resolver_resp = await response.json()
                         did_doc_resp = resolver_resp.get("didDocument")
+                        did_doc_metadata = resolver_resp.get("didDocumentMetadata")
 
                         did_doc = DIDDocument.from_json(json.dumps(did_doc_resp))
-                        return did_doc.serialize()
+                        result = did_doc.serialize()
+                        # Check if 'deactivated' field is present in didDocumentMetadata
+                        if (
+                            did_doc_metadata
+                            and did_doc_metadata.get("deactivated") is True
+                        ):
+                            result["deactivated"] = True
+                        return result
                     except Exception as err:
                         raise ResolverError("Response was incorrectly formatted") from err
                 if response.status == 404:

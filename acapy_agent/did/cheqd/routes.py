@@ -4,7 +4,7 @@ from http import HTTPStatus
 
 from aiohttp import web
 from aiohttp_apispec import docs, request_schema, response_schema
-from marshmallow import Schema, fields, validate
+from marshmallow import Schema, fields
 
 from ...admin.decorators.auth import tenant_authentication
 from ...admin.request_context import AdminRequestContext
@@ -32,8 +32,22 @@ class VerificationMethodSchema(Schema):
         },
     )
     publicKeyMultibase = fields.Str(
-        required=True,
+        required=False,
         metadata={"description": "Public Key in multibase format", "example": "z6Mk..."},
+    )
+    publicKeyBase58 = fields.Str(
+        required=False,
+        metadata={
+            "description": "Public Key in base58 format",
+            "example": "B12NYF8RZ5Zk..",
+        },
+    )
+    publicKeyJwk = fields.Dict(
+        required=False,
+        metadata={
+            "description": "Public Key in Jwk format",
+            "example": {"kty": "OKP", "crv": "Ed25519", "x": "G6t3iUB8..."},
+        },
     )
     controller = fields.Str(
         required=True,
@@ -67,16 +81,16 @@ class DIDDocumentSchema(Schema):
     )
     controller = fields.List(
         fields.Str,
-        required=False,
+        required=True,
         metadata={"description": "DID Document controllers"},
     )
     verificationMethod = fields.List(
         fields.Nested(VerificationMethodSchema),
-        required=False,
+        required=True,
         metadata={"description": "Verification Methods"},
     )
     authentication = fields.List(
-        fields.Str, required=False, metadata={"description": "Authentication Methods"}
+        fields.Str, required=True, metadata={"description": "Authentication Methods"}
     )
     service = fields.List(
         fields.Nested(ServiceSchema), required=False, metadata={"description": "Services"}
@@ -173,7 +187,6 @@ class UpdateRequestSchema(OpenAPISchema):
 
     EXAMPLE = {
         "did": CHEQD_DID_EXAMPLE,
-        "didDocumentOperation": "setDidDocument",
         "didDocument": {
             "id": CHEQD_DID_EXAMPLE,
             "controller": [CHEQD_DID_EXAMPLE],
@@ -207,16 +220,6 @@ class UpdateRequestSchema(OpenAPISchema):
         metadata={
             "description": "Additional configuration options",
             "example": {"network": "testnet"},
-        },
-    )
-    didDocumentOperation = fields.Str(
-        required=True,
-        validate=validate.OneOf(
-            ["setDidDocument", "removeFromDidDocument", "addToDidDocument"]
-        ),
-        metadata={
-            "description": "Allowed operations on the DID Document.",
-            "example": "setDidDocument",
         },
     )
     didDocument = fields.Nested(
@@ -256,9 +259,7 @@ async def create_cheqd_did(request: web.BaseRequest):
         body = {}
 
     try:
-        return web.json_response(
-            (await DidCheqdManager(context.profile).register(body.get("options"))),
-        )
+        return await DidCheqdManager(context.profile).register(body.get("options"))
     except WalletError as e:
         raise web.HTTPBadRequest(reason=str(e))
 
@@ -277,16 +278,12 @@ async def update_cheqd_did(request: web.BaseRequest):
         body = {}
 
     try:
-        return web.json_response(
-            (
-                await DidCheqdManager(context.profile).update(
-                    body.get("did"),
-                    body.get("didDocumentOperation"),
-                    body.get("didDocument"),
-                    body.get("options"),
-                )
-            ),
+        return await DidCheqdManager(context.profile).update(
+            body.get("did"),
+            body.get("didDocument"),
+            body.get("options"),
         )
+
     except WalletError as e:
         raise web.HTTPBadRequest(reason=str(e))
 
@@ -305,9 +302,7 @@ async def deactivate_cheqd_did(request: web.BaseRequest):
         body = {}
 
     try:
-        return web.json_response(
-            (await DidCheqdManager(context.profile).deactivate(body.get("did"))),
-        )
+        return await DidCheqdManager(context.profile).deactivate(body.get("did"))
     except WalletError as e:
         raise web.HTTPBadRequest(reason=str(e))
 
@@ -317,8 +312,8 @@ async def register(app: web.Application):
     app.add_routes(
         [
             web.post("/did/cheqd/create", create_cheqd_did),
-            web.put("/did/cheqd/update", update_cheqd_did),
-            web.delete("/did/cheqd/deactivate", deactivate_cheqd_did),
+            web.post("/did/cheqd/update", update_cheqd_did),
+            web.post("/did/cheqd/deactivate", deactivate_cheqd_did),
         ]
     )
 
