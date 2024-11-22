@@ -187,7 +187,7 @@ class DIDCheqdRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             resolution_metadata={
                 "resource_id": resource_id,
                 "resource_name": credential_definition.get("tag"),
-                "resource_type": "anonCredsSchema",
+                "resource_type": "anonCredsCredDef",
             },
         )
 
@@ -230,7 +230,7 @@ class DIDCheqdRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         return CredDefResult(
             job_id=job_id,
             credential_definition_state=CredDefState(
-                state=CredDefState.STATE_WAIT,
+                state=CredDefState.STATE_FINISHED,
                 credential_definition_id=credential_definition_id,
                 credential_definition=credential_definition,
             ),

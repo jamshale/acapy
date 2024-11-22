@@ -58,6 +58,7 @@ class DidCheqdManager:
 
                 did_document = generate_res.get("didDoc")
                 did: str = did_document.get("id")
+
                 # request create did
                 create_request_res = await self.registrar.create(
                     {"didDocument": did_document, "network": network}
@@ -66,24 +67,29 @@ class DidCheqdManager:
                 job_id: str = create_request_res.get("jobId")
                 did_state = create_request_res.get("didState")
                 if did_state.get("state") == "action":
-                    sign_req: dict = did_state.get("signingRequest")[0]
-                    kid: str = sign_req.get("kid")
-                    payload_to_sign: str = sign_req.get("serializedPayload")
-                    signature_bytes = await wallet.sign_message(
-                        b64_to_bytes(payload_to_sign), verkey
-                    )
+                    sign_req: dict = did_state.get("signingRequest")
+                    sign_res = []
+
+                    for req in sign_req:
+                        kid: str = req.get("kid")
+                        payload_to_sign: str = req.get("serializedPayload")
+                        signature_bytes = await wallet.sign_message(
+                            b64_to_bytes(payload_to_sign), verkey
+                        )
+                        sign_res.append(
+                            {
+                                "kid": kid,
+                                "signature": bytes_to_b64(signature_bytes),
+                            }
+                        )
+
                     # publish did
                     publish_did_res = await self.registrar.create(
                         {
                             "jobId": job_id,
                             "network": network,
                             "secret": {
-                                "signingResponse": [
-                                    {
-                                        "kid": kid,
-                                        "signature": bytes_to_b64(signature_bytes),
-                                    }
-                                ],
+                                "signingResponse": sign_res,
                             },
                         }
                     )
