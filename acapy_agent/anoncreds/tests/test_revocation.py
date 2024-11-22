@@ -16,8 +16,8 @@ from aries_askar import AskarError, AskarErrorCode
 from requests import RequestException, Session
 
 from ...anoncreds.issuer import AnonCredsIssuer
-from ...anoncreds.models.anoncreds_cred_def import CredDef
-from ...anoncreds.models.anoncreds_revocation import (
+from ...anoncreds.models.credential_definition import CredDef
+from ...anoncreds.models.revocation import (
     RevList,
     RevListResult,
     RevListState,
@@ -26,7 +26,7 @@ from ...anoncreds.models.anoncreds_revocation import (
     RevRegDefState,
     RevRegDefValue,
 )
-from ...anoncreds.models.anoncreds_schema import (
+from ...anoncreds.models.schema import (
     AnonCredsSchema,
     GetSchemaResult,
 )
@@ -1414,7 +1414,6 @@ class TestAnonCredsRevocation(IsolatedAsyncioTestCase):
         assert isinstance(result, tuple)
         assert mock_supports_revocation.call_count == 1
 
-    @pytest.mark.asyncio
     @mock.patch.object(AskarAnoncredsProfileSession, "handle")
     async def test_create_credential_w3c_keyerror(self, mock_handle):
         mock_handle.fetch = mock.CoroutineMock(side_effect=[MockEntry(), MockEntry()])
