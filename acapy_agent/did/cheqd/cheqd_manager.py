@@ -186,7 +186,7 @@ class DidCheqdManager:
                 if did_state.get("state") == "action":
                     signing_requests: dict = did_state.get("signingRequest")
                     if not signing_requests:
-                        raise WalletError("No signing requests available for update.")
+                        raise Exception("No signing requests available for update.")
                     # sign all requests
                     signed_responses = await DidCheqdManager.sign_requests(
                         wallet, signing_requests

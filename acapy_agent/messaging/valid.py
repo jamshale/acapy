@@ -395,7 +395,7 @@ class CheqdCredDefId(Regexp):
     """Validate value against cheqd credential definition identifier specification."""
 
     EXAMPLE = "did:cheqd:testnet:8a7e756c-d3b5-4947-af99-2dcd2e8cc5a2/resources/83f06db5-"
-    PATTERN = CheqdDID.RESOURCE_ID_PATTERN
+    PATTERN = CheqdDID.RESOURCE_ID_PATTERN.pattern
 
     def __init__(self):
         """Initialize the instance."""
@@ -410,7 +410,7 @@ class CheqdSchemaId(Regexp):
     """Validate value against cheqd schema identifier specification."""
 
     EXAMPLE = "did:cheqd:testnet:8a7e756c-d3b5-4947-af99-2dcd2e8cc5a2/resources/e8cc28f2-"
-    PATTERN = CheqdDID.RESOURCE_ID_PATTERN
+    PATTERN = CheqdDID.RESOURCE_ID_PATTERN.pattern
 
     def __init__(self):
         """Initialize the instance."""
@@ -425,13 +425,13 @@ class AnoncredsDID(Regexp):
     """Validate value against indy DID."""
 
     EXAMPLE = "did:(method):WgWxqztrNooG92RXvxSTWv"
-    PATTERN = re.compile("^(did:[a-z]:.+$)?$")
+    PATTERN = re.compile("^(did:[a-z]:.+$)?$" + "|" + CheqdDID.PATTERN.pattern)
 
     def __init__(self):
         """Initialize the instance."""
 
         super().__init__(
-            IndyDID.PATTERN,
+            AnoncredsDID.PATTERN,
             error="Value {input} is not an decentralized identifier (DID)",
         )
 
@@ -538,13 +538,13 @@ class AnoncredsCredDefId(Regexp):
     """Validate value against anoncreds credential definition identifier specification."""
 
     EXAMPLE = "did:(method):3:CL:20:tag"
-    PATTERN = r"^(.+$)"
+    PATTERN = re.compile(IndyCredDefId.PATTERN + "|" + CheqdCredDefId.PATTERN)
 
     def __init__(self):
         """Initialize the instance."""
 
         super().__init__(
-            IndyCredDefId.PATTERN,
+            AnoncredsCredDefId.PATTERN,
             error="Value {input} is not an anoncreds credential definition identifier",
         )
 
@@ -583,13 +583,13 @@ class AnoncredsSchemaId(Regexp):
     """Validate value against indy schema identifier specification."""
 
     EXAMPLE = "did:(method):2:schema_name:1.0"
-    PATTERN = r"^(.+$)"
+    PATTERN = re.compile(IndySchemaId.PATTERN + "|" + CheqdSchemaId.PATTERN)
 
     def __init__(self):
         """Initialize the instance."""
 
         super().__init__(
-            IndySchemaId.PATTERN,
+            AnoncredsSchemaId.PATTERN,
             error="Value {input} is not an anoncreds schema identifier",
         )
 

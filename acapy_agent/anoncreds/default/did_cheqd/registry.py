@@ -13,14 +13,14 @@ from ...base import (
     BaseAnonCredsResolver,
     AnonCredsRegistrationError,
 )
-from ...models.anoncreds_cred_def import (
+from ...models.credential_definition import (
     CredDef,
     CredDefResult,
     GetCredDefResult,
     CredDefState,
     CredDefValue,
 )
-from ...models.anoncreds_revocation import (
+from ...models.revocation import (
     GetRevListResult,
     GetRevRegDefResult,
     RevList,
@@ -28,7 +28,7 @@ from ...models.anoncreds_revocation import (
     RevRegDef,
     RevRegDefResult,
 )
-from ...models.anoncreds_schema import (
+from ...models.schema import (
     AnonCredsSchema,
     GetSchemaResult,
     SchemaResult,
@@ -40,7 +40,6 @@ from ....resolver.default.cheqd import CheqdDIDResolver
 from ....messaging.valid import CheqdDID
 from ....wallet.base import BaseWallet
 from ....wallet.jwt import dict_to_b64
-from ....wallet.util import b64_to_bytes, bytes_to_b64
 
 LOGGER = logging.getLogger(__name__)
 
@@ -310,15 +309,12 @@ class DIDCheqdRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
                 LOGGER.debug("JOBID %s", job_id)
                 if resource_state.get("state") == "action":
-                    sign_req: dict = resource_state.get("signingRequest")[0]
-                    kid: str = sign_req.get("kid")
-                    payload_to_sign: str = sign_req.get("serializedPayload")
-                    key = await wallet.get_key_by_kid(kid)
-                    verkey = key.verkey
-
-                    # sign payload
-                    signature_bytes = await wallet.sign_message(
-                        b64_to_bytes(payload_to_sign), verkey
+                    signing_requests: dict = resource_state.get("signingRequest")
+                    if not signing_requests:
+                        raise Exception("No signing requests available for update.")
+                    # sign all requests
+                    signed_responses = await DidCheqdManager.sign_requests(
+                        wallet, signing_requests
                     )
 
                     # publish resource
@@ -326,14 +322,7 @@ class DIDCheqdRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
                         did,
                         {
                             "jobId": job_id,
-                            "secret": {
-                                "signingResponse": [
-                                    {
-                                        "kid": kid,
-                                        "signature": bytes_to_b64(signature_bytes),
-                                    }
-                                ],
-                            },
+                            "secret": {"signingResponse": signed_responses},
                         },
                     )
                     resource_state = publish_resource_res.get("resourceState")

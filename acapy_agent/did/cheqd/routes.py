@@ -314,7 +314,6 @@ async def register(app: web.Application):
             web.post("/did/cheqd/create", create_cheqd_did),
             web.post("/did/cheqd/update", update_cheqd_did),
             web.post("/did/cheqd/deactivate", deactivate_cheqd_did),
-            web.post("/did/cheqd/key"),
         ]
     )
 
