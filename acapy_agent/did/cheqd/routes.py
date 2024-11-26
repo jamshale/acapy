@@ -6,9 +6,10 @@ from aiohttp import web
 from aiohttp_apispec import docs, request_schema, response_schema
 from marshmallow import Schema, fields
 
+from .manager import DIDCheqdManagerError
 from ...admin.decorators.auth import tenant_authentication
 from ...admin.request_context import AdminRequestContext
-from ...did.cheqd.cheqd_manager import DidCheqdManager
+from ...did.cheqd.manager import DidCheqdManager
 from ...messaging.models.openapi import OpenAPISchema
 from ...messaging.valid import CHEQD_DID_EXAMPLE, CHEQD_DID_VALIDATE
 from ...wallet.error import WalletError
@@ -259,9 +260,14 @@ async def create_cheqd_did(request: web.BaseRequest):
         body = {}
 
     try:
-        return await DidCheqdManager(context.profile).create(body.get("options"))
-    except WalletError as e:
-        raise web.HTTPBadRequest(reason=str(e))
+        result = await DidCheqdManager(context.profile).create(body.get("options"))
+        return web.json_response(
+            {"did": result.get("did"), "verkey": result.get("verkey")}
+        )
+    except DIDCheqdManagerError as err:
+        raise web.HTTPInternalServerError(reason=err.roll_up)
+    except WalletError as err:
+        raise web.HTTPBadRequest(reason=err.roll_up)
 
 
 @docs(tags=["did"], summary="Update a did:cheqd")
@@ -278,14 +284,16 @@ async def update_cheqd_did(request: web.BaseRequest):
         body = {}
 
     try:
-        return await DidCheqdManager(context.profile).update(
+        result = await DidCheqdManager(context.profile).update(
             body.get("did"),
             body.get("didDocument"),
             body.get("options"),
         )
-
-    except WalletError as e:
-        raise web.HTTPBadRequest(reason=str(e))
+        return web.json_response(result)
+    except DIDCheqdManagerError as err:
+        raise web.HTTPInternalServerError(reason=err.roll_up)
+    except WalletError as err:
+        raise web.HTTPBadRequest(reason=err.roll_up)
 
 
 @docs(tags=["did"], summary="Deactivate a did:cheqd")
@@ -302,9 +310,12 @@ async def deactivate_cheqd_did(request: web.BaseRequest):
         body = {}
 
     try:
-        return await DidCheqdManager(context.profile).deactivate(body.get("did"))
-    except WalletError as e:
-        raise web.HTTPBadRequest(reason=str(e))
+        result = await DidCheqdManager(context.profile).deactivate(body.get("did"))
+        return web.json_response(result)
+    except DIDCheqdManagerError as err:
+        raise web.HTTPInternalServerError(reason=err.roll_up)
+    except WalletError as err:
+        raise web.HTTPBadRequest(reason=err.roll_up)
 
 
 async def register(app: web.Application):

@@ -34,7 +34,7 @@ from ...models.schema import (
     SchemaResult,
     SchemaState,
 )
-from ....did.cheqd.cheqd_manager import DidCheqdManager
+from ....did.cheqd.manager import DidCheqdManager
 from ....did.cheqd.registrar import DidCheqdRegistrar
 from ....resolver.default.cheqd import CheqdDIDResolver
 from ....messaging.valid import CheqdDID

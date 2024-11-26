@@ -3,9 +3,9 @@
 import logging
 
 from aiohttp import web
-from aiohttp.web_response import Response
 
 from .registrar import DidCheqdRegistrar
+from ...core.error import BaseError
 from ...core.profile import Profile
 from ...resolver.base import DIDNotFound
 from ...resolver.default.cheqd import CheqdDIDResolver
@@ -65,7 +65,7 @@ class DidCheqdManager:
 
         return signed_responses
 
-    async def create(self, options: dict) -> Response:
+    async def create(self, options: dict) -> dict:
         """Register a Cheqd DID."""
         options = options or {}
 
@@ -85,7 +85,7 @@ class DidCheqdManager:
             try:
                 wallet = session.inject(BaseWallet)
                 if not wallet:
-                    raise web.HTTPForbidden(reason="No wallet available")
+                    raise WalletError(reason="No wallet available")
 
                 key = await wallet.create_key(key_type, seed)
                 verkey = key.verkey
@@ -97,7 +97,7 @@ class DidCheqdManager:
                     network, public_key_hex
                 )
                 if generate_res is None:
-                    raise WalletError("Error constructing DID Document")
+                    raise DIDCheqdManagerError("Error constructing DID Document")
 
                 did_document = generate_res.get("didDoc")
                 did: str = did_document.get("id")
@@ -112,7 +112,9 @@ class DidCheqdManager:
                 if did_state.get("state") == "action":
                     signing_requests: dict = did_state.get("signingRequest")
                     if not signing_requests:
-                        raise WalletError("No signing requests available for create.")
+                        raise DIDCheqdManagerError(
+                            "No signing requests available for create."
+                        )
 
                     # Note: This assumes did create operation supports only one did
                     kid: str = signing_requests[0].get("kid")
@@ -133,29 +135,26 @@ class DidCheqdManager:
                     )
                     publish_did_state = publish_did_res.get("didState")
                     if publish_did_state.get("state") != "finished":
-                        raise WalletError(
+                        raise DIDCheqdManagerError(
                             f"Error registering DID {publish_did_state.get("reason")}"
                         )
                 else:
-                    raise WalletError(f"Error registering DID {did_state.get("reason")}")
+                    raise DIDCheqdManagerError(
+                        f"Error registering DID {did_state.get("reason")}"
+                    )
 
                 # create public did record
                 await wallet.create_public_did(CHEQD, key_type, seed, did)
                 await wallet.assign_kid_to_key(verkey, kid)
-            except WalletError as err:
-                return web.json_response({"error": f"Wallet Error: {err}"}, status=400)
-            except Exception as e:
-                return web.json_response(
-                    {"error": f"An unexpected error occurred: {str(e)}"}, status=500
-                )
-        return web.json_response(
-            {
-                "did": did,
-                "verkey": verkey,
-            }
-        )
+            except Exception as ex:
+                raise ex
+        return {
+            "did": did,
+            "verkey": verkey,
+            "didDocument": publish_did_state.get("didDocument"),
+        }
 
-    async def update(self, did: str, didDoc: dict, options: dict) -> Response:
+    async def update(self, did: str, didDoc: dict, _options: dict) -> dict:
         """Update a Cheqd DID."""
 
         async with self.profile.session() as session:
@@ -204,29 +203,21 @@ class DidCheqdManager:
                     publish_did_state = publish_did_res.get("didState")
 
                     if publish_did_state.get("state") != "finished":
-                        raise WalletError(
+                        raise DIDCheqdManagerError(
                             f"Error publishing DID \
                                 update {publish_did_state.get("description")}"
                         )
                 else:
-                    raise WalletError(f"Error updating DID {did_state.get("reason")}")
+                    raise DIDCheqdManagerError(
+                        f"Error updating DID {did_state.get("reason")}"
+                    )
             # TODO update new keys to wallet if necessary
-            except WalletError as err:
-                return web.json_response({"error": f"Wallet Error: {err}"}, status=400)
-            except DIDNotFound as err:
-                return web.json_response({"error": f"DID Not Found: {err}"}, status=404)
-            except Exception as e:
-                return web.json_response(
-                    {"error": f"An unexpected error occurred: {str(e)}"}, status=500
-                )
-        return web.json_response(
-            {
-                "did": did,
-                "did_state": publish_did_state.get("state"),
-            }
-        )
+            except Exception as ex:
+                raise ex
 
-    async def deactivate(self, did: str) -> Response:
+        return {"did": did, "didDocument": publish_did_state.get("didDocument")}
+
+    async def deactivate(self, did: str) -> dict:
         """Deactivate a Cheqd DID."""
         LOGGER.debug("Deactivate did: %s", did)
 
@@ -277,18 +268,14 @@ class DidCheqdManager:
                 did_info = await wallet.get_local_did(did)
                 metadata = {**did_info.metadata, "deactivated": True}
                 await wallet.replace_local_did_metadata(did, metadata)
-            except WalletError as err:
-                return web.json_response({"error": f"Wallet Error: {err}"}, status=400)
-            except DIDNotFound as err:
-                return web.json_response({"error": f"DID Not Found: {err}"}, status=404)
-            except Exception as e:
-                return web.json_response(
-                    {"error": f"An unexpected error occurred: {str(e)}"}, status=500
-                )
-        return web.json_response(
-            {
-                "did": did,
-                "did_document": publish_did_state.get("didDocument"),
-                "did_document_metadata": metadata,
-            }
-        )
+            except Exception as ex:
+                raise ex
+        return {
+            "did": did,
+            "did_document": publish_did_state.get("didDocument"),
+            "did_document_metadata": metadata,
+        }
+
+
+class DIDCheqdManagerError(BaseError):
+    """Base class for did cheqd manager exceptions."""
