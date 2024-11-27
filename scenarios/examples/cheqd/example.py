@@ -38,23 +38,27 @@ async def main():
         print(did_document)
 
         # Update: Add a service endpoint
-        did_document["service"] = [
+        service = [
             {
                 "id": f"{did}#service-1",
                 "type": "MessagingService",
                 "serviceEndpoint": ["https://example.com/service"],
             }
         ]
-        did_document["@context"] = []
+        did_document["service"] = service
+        del did_document["@context"]
+
         did_update_result = await issuer.post(
-            "/did/cheqd/update", json={"didDocument": did_document}
+            "/did/cheqd/update", json={"did": did, "didDocument": did_document}
         )
         updated_did_doc = did_update_result.get("didDocument")
         print(updated_did_doc)
         updated_did = did_update_result.get("did")
         assert did == updated_did
         assert "service" in updated_did_doc, "Key 'metadata' is missing"
-        assert isinstance(updated_did_doc["service"], dict)
+        assert (
+            updated_did_doc["service"] == service
+        ), "Service does not match expected value!"
 
         # Create Schema
 
