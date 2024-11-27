@@ -24,9 +24,6 @@
       interval: 7s
       timeout: 5s
       retries: 5
-    depends_on:
-      tails:
-        condition: service_started
 
   holder:
     image: acapy-test
@@ -65,9 +62,9 @@
       - ./example.py:/usr/src/app/example.py:ro,z
     command: python -m example
     depends_on:
-      agency:
+      issuer:
         condition: service_healthy
-      holder_anoncreds:
+      holder:
         condition: service_healthy
 
 
