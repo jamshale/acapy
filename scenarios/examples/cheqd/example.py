@@ -70,6 +70,36 @@ async def update_did(issuer, did, did_document):
     return updated_did_doc
 
 
+async def create_schema(issuer, did):
+    """Create a schema on the Cheqd testnet."""
+    schema_create_result = await issuer.post(
+        "/anoncreds/schema",
+        json={
+            "schema": {
+                "attrNames": ["score"],
+                "issuerId": did,
+                "name": "Example schema",
+                "version": "1.0",
+            }
+        },
+    )
+
+    assert (
+        schema_create_result.get("schema_state", {}).get("state") == "finished"
+    ), "Schema state is not finished."
+
+    schema_state = schema_create_result.get("schema_state", {})
+    assert "schema_id" in schema_state, "Key 'schema_id' is missing in schema_state."
+
+    schema_id = schema_state.get("schema_id")
+    assert (
+        did in schema_id
+    ), f"schema_id does not contain the expected DID. Expected '{did}' in '{schema_id}'."
+
+    print(f"Created schema: {format_json(schema_create_result)}")
+    return schema_id
+
+
 async def main():
     """Test DID Cheqd workflow."""
     async with Controller(base_url=ISSUER) as issuer:
@@ -80,8 +110,9 @@ async def main():
         did = await create_did(issuer)
         did_document = await resolve_did(issuer, did)
         await update_did(issuer, did, did_document)
+        await create_schema(issuer, did)
 
-        # Future steps (Create Schema, Credential Definition, Deactivate DID) can be added here
+        # Credential Definition, Deactivate DID
 
 
 if __name__ == "__main__":
