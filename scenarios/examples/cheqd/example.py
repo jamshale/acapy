@@ -5,16 +5,47 @@ This script is for you to use to reproduce a bug or demonstrate a feature.
 
 import asyncio
 import json
+from dataclasses import dataclass
 from os import getenv
+from typing import Tuple, Mapping, Optional
 
 from acapy_controller import Controller
 from acapy_controller.logging import logging_to_stdout
+from acapy_controller.protocols import didexchange
+from acapy_controller.controller import Minimal
 
 ISSUER = getenv("ISSUER", "http://issuer:3001")
 HOLDER = getenv("HOLDER", "http://holder:3001")
 
 
+@dataclass
+class V20CredExRecord(Minimal):
+    """V2.0 credential exchange record."""
+
+    state: str
+    cred_ex_id: str
+    connection_id: str
+    thread_id: str
+
+
+@dataclass
+class V20CredExRecordFormat(Minimal):
+    """V2.0 credential exchange record anoncreds."""
+
+    rev_reg_id: Optional[str] = None
+    cred_rev_id: Optional[str] = None
+
+
+@dataclass
+class V20CredExRecordDetail(Minimal):
+    """V2.0 credential exchange record detail."""
+
+    cred_ex_record: V20CredExRecord
+    details: Optional[V20CredExRecordFormat] = None
+
+
 def format_json(json_to_format):
+    """Pretty print json."""
     return json.dumps(json_to_format, indent=4)
 
 
@@ -101,8 +132,8 @@ async def create_schema(issuer, did):
             }
         },
     )
-
-    schema_state = schema_create_result.get("schema_state", {})
+    print(f"Created schema: {format_json(schema_create_result)}")
+    schema_state = schema_create_result.get("schema_state")
     assert schema_state.get("state") == "finished", "Schema state is not finished."
     assert "schema_id" in schema_state, "Key 'schema_id' is missing in schema_state."
 
@@ -111,7 +142,6 @@ async def create_schema(issuer, did):
         did in schema_id
     ), f"schema_id does not contain the expected DID. Expected '{did}' in '{schema_id}'."
 
-    print(f"Created schema: {format_json(schema_create_result)}")
     return schema_id
 
 
@@ -137,20 +167,20 @@ async def create_credential_definition(issuer, did, schema_id):
     credential_definition_id = cred_def_state.get("credential_definition_id")
     assert (
         did in credential_definition_id
-    ), f"credential_definition_id does not contain the expected DID. Expected '{did}' in '{credential_definition_id}'."
+    ), "credential_definition_id does not contain the expected DID."
 
     print(f"Created credential definition: {format_json(cred_def_create_result)}")
     return credential_definition_id
 
 
 async def assert_credential_definitions(issuer, credential_definition_id):
-    """Retrieve all credential definitions and ensure array contain created credential_definition_id."""
+    """Retrieve all cred_defs & ensure array contain created credential_definition_id."""
     get_result = await issuer.get("/anoncreds/credential-definitions")
 
     credential_definition_ids = get_result.get("credential_definition_ids", [])
     assert (
         credential_definition_id in credential_definition_ids
-    ), f"credential_definition_ids does not contain the expected credential_definition_id. Expected '{credential_definition_id}' in '{credential_definition_ids}'."
+    ), "credential_definition_ids does not contain the expected credential_definition_id."
 
 
 async def assert_wallet_dids(issuer, did):
@@ -161,23 +191,140 @@ async def assert_wallet_dids(issuer, did):
     assert any(obj.get("did") == did for obj in dids), f"DID {did} not found in array"
 
 
+async def issue_credential_v2(
+    issuer: Controller,
+    holder: Controller,
+    issuer_connection_id: str,
+    holder_connection_id: str,
+    cred_def_id: str,
+    attributes: Mapping[str, str],
+) -> Tuple[V20CredExRecordDetail, V20CredExRecordDetail]:
+    """Issue an credential using issue-credential/2.0.
+
+    Issuer and holder should already be connected.
+    """
+
+    issuer_cred_ex = await issuer.post(
+        "/issue-credential-2.0/send",
+        json={
+            "auto_issue": False,
+            "auto_remove": False,
+            "comment": "Credential from minimal example",
+            "trace": False,
+            "connection_id": issuer_connection_id,
+            "filter": {
+                "anoncreds": {
+                    "cred_def_id": cred_def_id,
+                }
+            },
+            "credential_preview": {
+                "type": "issue-credential-2.0/2.0/credential-preview",  # pyright: ignore
+                "attributes": [
+                    {
+                        "name": name,
+                        "value": value,
+                    }
+                    for name, value in attributes.items()
+                ],
+            },
+        },
+        response=V20CredExRecord,
+    )
+    issuer_cred_ex_id = issuer_cred_ex.cred_ex_id
+
+    holder_cred_ex = await holder.event_with_values(
+        topic="issue_credential_v2_0",
+        event_type=V20CredExRecord,
+        connection_id=holder_connection_id,
+        state="offer-received",
+    )
+    holder_cred_ex_id = holder_cred_ex.cred_ex_id
+
+    await holder.post(
+        f"/issue-credential-2.0/records/{holder_cred_ex_id}/send-request",
+        response=V20CredExRecord,
+    )
+
+    await issuer.event_with_values(
+        topic="issue_credential_v2_0",
+        cred_ex_id=issuer_cred_ex_id,
+        state="request-received",
+    )
+
+    await holder.event_with_values(
+        topic="issue_credential_v2_0",
+        cred_ex_id=holder_cred_ex_id,
+        state="credential-received",
+    )
+
+    await holder.post(
+        f"/issue-credential-2.0/records/{holder_cred_ex_id}/store",
+        json={},
+        response=V20CredExRecordDetail,
+    )
+
+    issuer_cred_ex = await issuer.event_with_values(
+        topic="issue_credential_v2_0",
+        event_type=V20CredExRecord,
+        cred_ex_id=issuer_cred_ex_id,
+        state="done",
+    )
+
+    holder_cred_ex = await holder.event_with_values(
+        topic="issue_credential_v2_0",
+        event_type=V20CredExRecord,
+        cred_ex_id=holder_cred_ex_id,
+        state="done",
+    )
+
+    return (
+        V20CredExRecordDetail(cred_ex_record=issuer_cred_ex),
+        V20CredExRecordDetail(cred_ex_record=holder_cred_ex),
+    )
+
+
 async def main():
     """Test DID Cheqd workflow."""
-    async with Controller(base_url=ISSUER) as issuer:
+    async with Controller(base_url=ISSUER) as issuer, Controller(
+        base_url=HOLDER
+    ) as holder:
         """
             This section of the test script demonstrates the CRUD operations of a did
             followed by creating schema, credential definition and credential issuance.
         """
         did = await create_did(issuer)
-        did_document = await resolve_did(issuer, did)
-        await update_did(issuer, did, did_document)
+
+        await resolve_did(issuer, did)
+
+        # updated_did_document = await update_did(issuer, did, did_document)
+
         schema_id = await create_schema(issuer, did)
+        print(schema_id)
+
         credential_definition_id = await create_credential_definition(
             issuer, did, schema_id
         )
+        print(credential_definition_id)
+
         await assert_credential_definitions(issuer, credential_definition_id)
         await assert_wallet_dids(issuer, did)
-        await deactivate_did(issuer, did)
+
+        # Connect issuer and holder
+        issuer_conn_with_anoncreds_holder, holder_anoncreds_conn = await didexchange(
+            issuer, holder
+        )
+
+        issue_credential_result = await issue_credential_v2(
+            issuer,
+            holder,
+            issuer_conn_with_anoncreds_holder.connection_id,
+            holder_anoncreds_conn.connection_id,
+            credential_definition_id,
+            {"score": "99"},
+        )
+        print(issue_credential_result)
+
+        # await deactivate_did(issuer, did)
 
 
 if __name__ == "__main__":

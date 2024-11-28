@@ -8,14 +8,14 @@
         --label Issuer
         --inbound-transport http 0.0.0.0 3000
         --outbound-transport http
-        --endpoint http://agency:3000
+        --endpoint http://issuer:3000
         --admin 0.0.0.0 3001
         --admin-insecure-mode
         --wallet-type askar-anoncreds
         --wallet-name agency
         --wallet-key insecure
         --auto-provision
-        --log-level info
+        --log-level DEBUG
         --debug-webhooks
         --no-ledger
     healthcheck:
@@ -41,7 +41,7 @@
         --wallet-name holder
         --wallet-key insecure
         --auto-provision
-        --log-level info
+        --log-level DEBUG
         --debug-webhooks
         --no-ledger
     healthcheck:
