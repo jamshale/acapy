@@ -24,7 +24,7 @@ class AnoncredsCredRequest(BaseModel):
 
     def __init__(
         self,
-        prover_did: Optional[str] = None,
+        entropy: Optional[str] = None,
         cred_def_id: Optional[str] = None,
         blinded_ms: Optional[Mapping] = None,
         blinded_ms_correctness_proof: Optional[Mapping] = None,
@@ -33,7 +33,7 @@ class AnoncredsCredRequest(BaseModel):
     ):
         """Initialize anoncreds credential request."""
         super().__init__(**kwargs)
-        self.prover_did = prover_did
+        self.entropy = entropy
         self.cred_def_id = cred_def_id
         self.blinded_ms = blinded_ms
         self.blinded_ms_correctness_proof = blinded_ms_correctness_proof
@@ -49,7 +49,7 @@ class AnoncredsCredRequestSchema(BaseModelSchema):
         model_class = AnoncredsCredRequest
         unknown = EXCLUDE
 
-    prover_did = fields.Str(
+    entropy = fields.Str(
         required=True,
         metadata={
             "description": "Prover DID/Random String/UUID",
