@@ -8,7 +8,7 @@ jobs:
   sonarcloud:
     name: SonarCloud
     runs-on: ubuntu-latest
-    if: github.repository == 'openwallet-foundation/acapy'
+    if: github.repository == 'jamshale/acapy'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -19,10 +19,12 @@ jobs:
             python-version: "3.12"
             os: "ubuntu-latest"
             is_pr: "false" 
-      - name: Adjust Test Coverage Source
-        run: |
-            # Need to change source in coverage report because it was generated from another context
-            sed -i 's/\/home\/runner\/work\/acapy\/acapy\//\/github\/workspace\//g' test-reports/coverage.xml
+      # - name: Adjust Test Coverage Source
+      #   run: |
+      #       # Need to change source in coverage report because it was generated from another context
+      #       echo 00000000000000000000000000000000000000000000000000
+      #       echo $(ls)
+      #       sed -i 's/\/home\/runner\/work\/acapy\/acapy\//\/github\/workspace\//g' test-reports/coverage.xml
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
