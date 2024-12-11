@@ -9,7 +9,7 @@ on:
 jobs:
   SonarCloud:
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success' && github.repository == 'openwallet-foundation/acapy'
+    if: github.event.workflow_run.conclusion == 'success' && github.repository == 'jamshale/acapy'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,6 +51,17 @@ jobs:
           echo base branch = ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
 
           git checkout -B temp-branch-for-scanning upstream/${{ fromJson(steps.get_pr_data.outputs.data).head.ref }}
+      - name: Move Coverage Report And Adjust Source
+        run: |
+          mkdir test-reports
+          mv coverage.xml test-reports
+          # Need to change source in coverage report because it was generated from another context
+          echo ********************************************************************
+          echo ${ls}
+          sed -i 's/\/home\/runner\/work\/acapy\/acapy\//\/github\/workspace\//g' test-reports/coverage.xml
+          echo ${ls}
+          echo ${cd test-reports}
+          echo ${ls}
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@master
         env:
