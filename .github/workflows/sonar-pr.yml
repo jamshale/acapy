@@ -53,15 +53,16 @@ jobs:
           git checkout -B temp-branch-for-scanning upstream/${{ fromJson(steps.get_pr_data.outputs.data).head.ref }}
       - name: Move Coverage Report And Adjust Source
         run: |
+          echo ********************************************************************
+          ls
           mkdir test-reports
+          ls
           mv coverage.xml test-reports
           # Need to change source in coverage report because it was generated from another context
-          echo ********************************************************************
-          echo ${ls}
           sed -i 's/\/home\/runner\/work\/acapy\/acapy\//\/github\/workspace\//g' test-reports/coverage.xml
-          echo ${ls}
-          echo ${cd test-reports}
-          echo ${ls}
+          ls
+          cd test-reports
+          ls
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@master
         env:
