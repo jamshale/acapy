@@ -55,6 +55,8 @@ jobs:
         run: |
           echo ********************************************************************
           ls /
+          echo ********************************************************************
+          ls /home/
           mkdir test-reports
           cat coverage.xml
           mv coverage.xml test-reports
