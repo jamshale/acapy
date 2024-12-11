@@ -53,10 +53,12 @@ jobs:
           git checkout -B temp-branch-for-scanning upstream/${{ fromJson(steps.get_pr_data.outputs.data).head.ref }}
       - name: Move Coverage Report And Adjust Source
         run: |
-          echo ********************************************************************
+          echo 0000000000000000000000000000000000000000000
           ls /
-          echo ********************************************************************
+          echo 0000000000000000000000000000000000000000000
           ls /home/
+          echo 0000000000000000000000000000000000000000000
+          ls /home/runner/
           mkdir test-reports
           cat coverage.xml
           mv coverage.xml test-reports
