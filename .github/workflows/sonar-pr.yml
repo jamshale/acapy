@@ -59,6 +59,10 @@ jobs:
           ls /home/
           echo 0000000000000000000000000000000000000000000
           ls /home/runner/
+          echo 0000000000000000000000000000000000000000000
+          ls /home/runner/work/
+          echo 0000000000000000000000000000000000000000000
+          echo ${{ github.workspace }}
           mkdir test-reports
           cat coverage.xml
           mv coverage.xml test-reports
