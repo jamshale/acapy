@@ -51,21 +51,21 @@ jobs:
           echo base branch = ${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
 
           git checkout -B temp-branch-for-scanning upstream/${{ fromJson(steps.get_pr_data.outputs.data).head.ref }}
-      - name: Move Coverage Report And Adjust Source
-        run: |
-          echo 0000000000000000000000000000000000000000000
-          ls /
-          echo 0000000000000000000000000000000000000000000
-          ls /home/
-          echo 0000000000000000000000000000000000000000000
-          ls /home/runner/
-          echo 0000000000000000000000000000000000000000000
-          ls /home/runner/work/
-          echo 0000000000000000000000000000000000000000000
-          echo ${{ github.workspace }}
-          mkdir test-reports
-          cat coverage.xml
-          mv coverage.xml test-reports
+      # - name: Move Coverage Report And Adjust Source
+      #   run: |
+      #     echo 0000000000000000000000000000000000000000000
+      #     ls /
+      #     echo 0000000000000000000000000000000000000000000
+      #     ls /home/
+      #     echo 0000000000000000000000000000000000000000000
+      #     ls /home/runner/
+      #     echo 0000000000000000000000000000000000000000000
+      #     ls /home/runner/work/
+      #     echo 0000000000000000000000000000000000000000000
+      #     echo ${{ github.workspace }}
+      #     mkdir test-reports
+      #     cat coverage.xml
+      #     mv coverage.xml test-reports
       - name: SonarCloud Scan
         uses: SonarSource/sonarqube-scan-action@master
         env:
@@ -79,5 +79,5 @@ jobs:
             -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
             -Dsonar.coverage.exclusions=**/tests/**,**/demo/**,**/docs/**,**/docker/**,**/scripts/**,**/scenarios/**
             -Dsonar.cpd.exclusions=**/tests/**,**/demo/**,**/docs/**,**/docker/**,**/scripts/**,**/scenarios/**
-            -Dsonar.python.coverage.reportPaths=test-reports/coverage.xml
+            -Dsonar.python.coverage.reportPaths=coverage.xml
             -Dsonar.sources=./
