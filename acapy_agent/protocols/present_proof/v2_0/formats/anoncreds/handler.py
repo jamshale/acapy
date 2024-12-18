@@ -234,16 +234,18 @@ class AnonCredsPresExchangeHandler(V20PresFormatHandler):
                 sub_proof_index = attr_spec["sub_proof_index"]
                 registry = self.profile.inject(AnonCredsRegistry)
                 schema_id = proof["identifiers"][sub_proof_index]["schema_id"]
-                schema_info = await registry.get_schema_info_by_id(schema_id)
+                schema_info = await registry.get_schema(self.profile, schema_id)
                 cred_def_id = proof["identifiers"][sub_proof_index]["cred_def_id"]
-                cred_def_info = await registry.get_cred_def_info_by_id(cred_def_id)
+                cred_def_info = await registry.get_credential_definition(
+                    self.profile, cred_def_id
+                )
                 criteria = {
                     "schema_id": schema_id,
-                    "schema_issuer_did": schema_info.issuer_id,
-                    "schema_name": schema_info.name,
-                    "schema_version": schema_info.version,
+                    "schema_issuer_did": schema_info.schema_value.issuer_id,
+                    "schema_name": schema_info.schema_value.name,
+                    "schema_version": schema_info.schema_value.version,
                     "cred_def_id": cred_def_id,
-                    "issuer_did": cred_def_info.issuer_id,
+                    "issuer_did": cred_def_info.credential_definition.issuer_id,
                     **{
                         f"attr::{name}::value": value
                         for name, value in proof_values.items()
@@ -298,16 +300,18 @@ class AnonCredsPresExchangeHandler(V20PresFormatHandler):
 
                 registry = self.profile.inject(AnonCredsRegistry)
                 schema_id = proof["identifiers"][sub_proof_index]["schema_id"]
-                schema_info = await registry.get_schema_info_by_id(schema_id)
+                schema_info = await registry.get_schema(self.profile, schema_id)
                 cred_def_id = proof["identifiers"][sub_proof_index]["cred_def_id"]
-                cred_def_info = await registry.get_cred_def_info_by_id(cred_def_id)
+                cred_def_info = await registry.get_credential_definition(
+                    self.profile, cred_def_id
+                )
                 criteria = {
                     "schema_id": schema_id,
-                    "schema_issuer_did": schema_info.issuer_id,
-                    "schema_name": schema_info.name,
-                    "schema_version": schema_info.version,
+                    "schema_issuer_did": schema_info.schema_value.issuer_id,
+                    "schema_name": schema_info.schema_value.name,
+                    "schema_version": schema_info.schema_value.version,
                     "cred_def_id": cred_def_id,
-                    "issuer_did": cred_def_info.issuer_id,
+                    "issuer_did": cred_def_info.credential_definition.issuer_id,
                 }
 
                 if (
