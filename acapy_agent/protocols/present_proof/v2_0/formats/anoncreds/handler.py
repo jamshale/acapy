@@ -201,11 +201,11 @@ class AnonCredsPresExchangeHandler(V20PresFormatHandler):
                 cred_def_id = proof["identifiers"][sub_proof_index]["cred_def_id"]
                 criteria = {
                     "schema_id": schema_id,
-                    "schema_issuer_did": schema_id.split(":")[-4],
-                    "schema_name": schema_id.split(":")[-2],
-                    "schema_version": schema_id.split(":")[-1],
+                    "schema_issuer_did": schema_info.schema_value.issuer_id,
+                    "schema_name": schema_info.schema_value.name,
+                    "schema_version": schema_info.schema_value.version,
                     "cred_def_id": cred_def_id,
-                    "issuer_did": cred_def_id.split(":")[-5],
+                    "issuer_did": cred_def_info.credential_definition.issuer_id,
                     f"attr::{name}::value": proof_value,
                 }
 
