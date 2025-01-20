@@ -630,7 +630,7 @@ async def finish_upgrade(profile: Profile):
             await storage.update_record(
                 storage_type_record, STORAGE_TYPE_VALUE_ANONCREDS, {}
             )
-        # This should only happen for subwallets
+        # This should only happen for sub-wallets
         except StorageNotFoundError:
             await storage.add_record(
                 StorageRecord(
@@ -705,10 +705,11 @@ async def check_upgrade_completion_loop(profile: Profile, is_subwallet=False):
                             f"""Upgrade of subwallet {profile.settings.get("wallet.name")} has completed. Profile is now askar-anoncreds"""  # noqa: E501
                         )
                         return
+                    # Shut down agent if base wallet
                     LOGGER.info(
                         f"Upgrade complete for wallet: {profile.name}, shutting down agent."  # noqa: E501
                     )
-                    # Shut down agent if base wallet
+                    await finish_upgrade(profile)
                     asyncio.get_event_loop().stop()
             except StorageNotFoundError:
                 # If the record is not found, the upgrade failed
