@@ -133,16 +133,14 @@ jobs:
           out="${{ steps.run-pr-interop-tests-anoncreds.outputs.output }}"
           echo "$out"
           echo "---------------------------------"
-          if [ ! -z "$out" ]; then
-              echo "0000000000000000000000000000000000000"
-              if [[ "$out" == *"Failing scenarios:"* ]]; then
-                  echo "Tests failed"
-                  exit 1
-              else
-                  echo "Tests passed"
-                  exit 0
-              fi
+          if echo "$out" | grep -q "Failing scenarios:";
+            echo "Tests failed"
+            exit 1
+          else
+            echo "Tests passed"
+            exit 0
           fi
+          
 
         # out=${{join(steps.run-release-interop-tests-anoncreds.outputs.*, '\n')}}
         # if [ ! -z "$out" ]; then
