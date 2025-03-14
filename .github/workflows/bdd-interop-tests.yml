@@ -26,9 +26,7 @@ jobs:
     outputs:
       run_tests: ${{ steps.check-if-src-changed.outputs.run_tests }}
     # Run on openwallet-foundation and non-draft PRs or on non-PR events
-    if: (github.repository == 'jamshale/acapy') && ((github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event_name != 'pull_request'))
-    outputs:
-      is_release: ${{ steps.check_if_release.outputs.is_release }}
+    if: (github.repository == 'jamshale/acapy') && ((github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event_name != 'pull_request'))}
     steps:
       - name: checkout-acapy
         uses: actions/checkout@v4
