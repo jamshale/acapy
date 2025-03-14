@@ -87,13 +87,21 @@ jobs:
           cd owl-agent-test-harness
           NO_TTY=1 LEDGER_URL_CONFIG=http://test.bcovrin.vonx.io TAILS_SERVER_URL_CONFIG=https://tails.vonx.io ./manage run -d acapy-main -t @AcceptanceTest -t ~@wip -t ~@T004-RFC0211 -t ~@DidMethod_orb -t ~@Transport_NoHttpOutbound -t ~@Anoncreds
       - name: Check If Tests Failed
+        if: steps.check-if-src-changed.outputs.run_tests != 'false'
         run: |
-          if ${{join(steps.run-release-interop-tests.outputs.*, '\n')}} | grep -q "Failing scenarios:"; then
-            echo "Tests failed"
-            exit 1
+          out = ${{join(steps.run-pr-interop-tests.outputs.*, '\n')}}
+          if [ ! -z "$out" ]; then
+            if "$out" | grep -q "Failing scenarios:"; then
+              echo "Tests failed"
+              exit 1
+            fi
           fi
-          if ${{join(steps.run-release-interop-tests.outputs.*, '\n')}} | grep -q "Failing scenarios:"; then
-            echo "Tests failed"
-            exit 1
+
+          out = ${{join(steps.run-pr-interop-tests.outputs.*, '\n')}}
+          if [ ! -z "$out" ]; then
+            if "$out" | grep -q "Failing scenarios:"; then
+              echo "Tests failed"
+              exit 1
+            fi
           fi
 
