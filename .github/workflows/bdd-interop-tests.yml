@@ -47,11 +47,11 @@ jobs:
             echo run_tests=false >> $GITHUB_OUTPUT
           fi
       - name: Check if PR is a release
-        if: steps.check-if-src-changed.outputs.run_tests != 'false'
+        if: steps.check-if-src-changed.outputs.run_tests == 'false'
         uses: ./.github/actions/is-release
         id: check_if_release
       - name: Request GitHub API for PR data
-        if: steps.check-if-src-changed.outputs.run_tests != 'false'
+        if: steps.check-if-src-changed.outputs.run_tests == 'false'
         uses: octokit/request-action@v2.x
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,7 +59,7 @@ jobs:
         with:
           route: GET /repos/${{ github.event.repository.full_name }}/pulls/${{ github.event.number }}
       - name: Prepare Interop Tests
-        if: steps.check-if-src-changed.outputs.run_tests != 'false'
+        if: steps.check-if-src-changed.outputs.run_tests == 'false'
         run: |
           # Get AATH 
           git clone https://github.com/openwallet-foundation/owl-agent-test-harness.git
@@ -116,7 +116,8 @@ jobs:
         run: |
           cd owl-agent-test-harness
           output=$(NO_TTY=1 LEDGER_URL_CONFIG=http://test.bcovrin.vonx.io TAILS_SERVER_URL_CONFIG=https://tails.vonx.io ./manage run -d acapy-main -t @critical -t ~@wip -t ~@T004-RFC0211 -t ~@DidMethod_orb -t ~@Transport_NoHttpOutbound -t ~@Indy -t ~@CredFormat_Indy)
-          echo output="$output" >> $GITHUB_OUTPUT
+          echo "$output"
+          echo "$output" >> $GITHUB_OUTPUT
       # - name: Run Release or Nightly Interop Tests Anoncreds
       #   id: run-release-interop-tests-anoncreds
       #   if: (steps.check_if_release.outputs.is_release == 'true' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' && steps.check-if-src-changed.outputs.run_tests == 'false')
@@ -124,7 +125,7 @@ jobs:
       #     cd owl-agent-test-harness
       #     NO_TTY=1 LEDGER_URL_CONFIG=http://test.bcovrin.vonx.io TAILS_SERVER_URL_CONFIG=https://tails.vonx.io ./manage run -d acapy-main -t @AcceptanceTest -t ~@wip -t ~@T004-RFC0211 -t ~@DidMethod_orb -t ~@Transport_NoHttpOutbound -t ~@Indy -t ~@CredFormat_Indy
       - name: Check If Tests Failed
-        if: steps.check-if-src-changed.outputs.run_tests != 'false'
+        if: steps.check-if-src-changed.outputs.run_tests == 'false'
         run: |
           out=${{steps.run-pr-interop-tests-anoncreds.outputs.output}}
           if [ ! -z "$out" ]; then
