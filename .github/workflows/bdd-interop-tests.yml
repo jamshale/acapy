@@ -129,7 +129,7 @@ jobs:
         if: steps.check-if-src-changed.outputs.run_tests == 'false'
         run: |
           echo "---------------------------------"
-          echo "${{ steps.run-pr-interop-tests-anoncreds.outputs.output }}"
+          echo ${{join(steps.run-pr-interop-tests-anoncreds.outputs.*, '\n')}}
           echo "---------------------------------"
         # if echo "$out" | grep -q "Failing scenarios:"; then
         #   echo "Tests failed"
