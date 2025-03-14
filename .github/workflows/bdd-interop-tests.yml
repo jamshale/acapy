@@ -17,9 +17,6 @@ defaults:
   run:
     shell: bash
 
-outputs:
-  run_tests: true
-
 jobs:
   test:
     runs-on: ubuntu-latest
