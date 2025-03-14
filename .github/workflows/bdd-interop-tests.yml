@@ -116,11 +116,7 @@ jobs:
         run: |
           cd owl-agent-test-harness 
           result=$(NO_TTY=1 LEDGER_URL_CONFIG=http://test.bcovrin.vonx.io TAILS_SERVER_URL_CONFIG=https://tails.vonx.io ./manage run -d acapy-main -t @critical -t ~@wip -t ~@T004-RFC0211 -t ~@DidMethod_orb -t ~@Transport_NoHttpOutbound -t ~@Indy -t ~@CredFormat_Indy)
-          {
-            echo 'output<<EOF'
-            echo "$result"
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+          echo "output<<EOF"$'\n'"$result"$'\n'EOF >> "$GITHUB_OUTPUT"
       # - name: Run Release or Nightly Interop Tests Anoncreds
       #   id: run-release-interop-tests-anoncreds
       #   if: (steps.check_if_release.outputs.is_release == 'true' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' && steps.check-if-src-changed.outputs.run_tests == 'false')
@@ -131,7 +127,6 @@ jobs:
         if: steps.check-if-src-changed.outputs.run_tests == 'false'
         run: |
           out="${{ steps.run-pr-interop-tests-anoncreds.outputs.output }}"
-          echo "$out"
           echo "---------------------------------"
           if echo "$out" | grep -q "Failing scenarios:"; then
             echo "Tests failed"
