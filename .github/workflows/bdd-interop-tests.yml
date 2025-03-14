@@ -131,15 +131,12 @@ jobs:
         if: steps.check-if-src-changed.outputs.run_tests == 'false'
         run: |
           out="${{ steps.run-pr-interop-tests-anoncreds.outputs.output }}"
-          echo "$out"
-          if [ ! -z "$out" ]; then
-              if [[ "$out" == *"Failing scenarios:"* ]]; then
-                  echo "Tests failed"
-                  exit 1
-              else
-                  echo "Tests passed"
-                  exit 0
-              fi
+          if [[ "$out" == *"Failing scenarios:"* ]]; then
+              echo "Tests failed"
+              exit 1
+          else
+              echo "Tests passed"
+              exit 0
           fi
 
         # out=${{join(steps.run-release-interop-tests-anoncreds.outputs.*, '\n')}}
