@@ -133,7 +133,7 @@ jobs:
           out="${{ steps.run-pr-interop-tests-anoncreds.outputs.output }}"
           echo "$out"
           echo "---------------------------------"
-          if echo "$out" | grep -q "Failing scenarios:";
+          if echo "$out" | grep -q "Failing scenarios:"; then
             echo "Tests failed"
             exit 1
           else
