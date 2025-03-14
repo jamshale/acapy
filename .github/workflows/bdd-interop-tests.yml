@@ -132,7 +132,7 @@ jobs:
         run: |
           out="${{ steps.run-pr-interop-tests-anoncreds.outputs.output }}"
           echo "$out"
-          echo"---------------------------------"
+          echo "---------------------------------"
           if [ ! -z "$out" ]; then
               echo "0000000000000000000000000000000000000"
               if [[ "$out" == *"Failing scenarios:"* ]]; then
