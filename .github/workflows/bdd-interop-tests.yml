@@ -120,7 +120,7 @@ jobs:
             echo 'output<<EOF'
             echo "$result"
             echo 'EOF'
-          } >> $GITHUB_ENV
+          } >> $GITHUB_OUTPUT
       # - name: Run Release or Nightly Interop Tests Anoncreds
       #   id: run-release-interop-tests-anoncreds
       #   if: (steps.check_if_release.outputs.is_release == 'true' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' && steps.check-if-src-changed.outputs.run_tests == 'false')
