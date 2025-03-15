@@ -116,8 +116,9 @@ jobs:
         run: |
           cd owl-agent-test-harness 
           result=$(NO_TTY=1 LEDGER_URL_CONFIG=http://test.bcovrin.vonx.io TAILS_SERVER_URL_CONFIG=https://tails.vonx.io ./manage run -d acapy-main -t @critical -t ~@wip -t ~@T004-RFC0211 -t ~@DidMethod_orb -t ~@Transport_NoHttpOutbound -t ~@Indy -t ~@CredFormat_Indy)
+          echo "$result"
           echo 'output<<EOF' >> $GITHUB_OUTPUT
-          echo $result >> $GITHUB_OUTPUT
+          echo "$result" >> $GITHUB_OUTPUT
           echo 'EOF' >> $GITHUB_OUTPUT
       # - name: Run Release or Nightly Interop Tests Anoncreds
       #   id: run-release-interop-tests-anoncreds
