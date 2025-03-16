@@ -115,7 +115,7 @@ jobs:
         if: (steps.check_if_release.outputs.is_release != 'true' && github.event_name == 'pull_request' && steps.check-if-src-changed.outputs.run_tests == 'false')
         run: |
           cd owl-agent-test-harness 
-          NO_TTY=1 LEDGER_URL_CONFIG=http://test.bcovrin.vonx.io TAILS_SERVER_URL_CONFIG=https://tails.vonx.io ./manage run -d acapy-main -t @T001-RFC0453 -t ~@wip -t ~@T004-RFC0211 -t ~@DidMethod_orb -t ~@Transport_NoHttpOutbound -t ~@Indy -t ~@CredFormat_Indy | tee output.txt
+          NO_TTY=1 LEDGER_URL_CONFIG=http://test.bcovrin.vonx.io TAILS_SERVER_URL_CONFIG=https://tails.vonx.io ./manage run -d acapy-main -t @T001-RFC0453 -t ~@wip -t ~@T004-RFC0211 -t ~@DidMethod_orb -t ~@Transport_NoHttpOutbound -t ~@Indy -t ~@CredFormat_Indy > output.txt
       # - name: Run Release or Nightly Interop Tests Anoncreds
       #   id: run-release-interop-tests-anoncreds
       #   if: (steps.check_if_release.outputs.is_release == 'true' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' && steps.check-if-src-changed.outputs.run_tests == 'false')
@@ -126,7 +126,8 @@ jobs:
         if: steps.check-if-src-changed.outputs.run_tests == 'false'
         run: |
           cd owl-agent-test-harness
-          if grep -q "Failed scenarios" output.txt; then
+          cat output.txt
+          if grep "Failed scenarios" output.txt; then
               echo "Tests failed"
               exit 1
           else
