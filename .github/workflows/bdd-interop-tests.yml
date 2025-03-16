@@ -127,7 +127,7 @@ jobs:
         run: |
           cd owl-agent-test-harness
           cat output.txt
-          if grep "Failed scenarios" output.txt; then
+          if grep "Failing scenarios:" output.txt; then
               echo "Tests failed"
               exit 1
           else
