@@ -126,5 +126,11 @@ jobs:
         if: steps.check-if-src-changed.outputs.run_tests == 'false'
         run: |
           cd owl-agent-test-harness
-          cat output.txt
+          if grep -q "Failed scenarios" output.txt; then
+              echo "Tests failed"
+              exit 1
+          else
+              echo "Tests passed"
+              exit 0
+          fi
 
