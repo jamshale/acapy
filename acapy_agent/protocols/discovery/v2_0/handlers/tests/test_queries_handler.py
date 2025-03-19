@@ -4,14 +4,14 @@ from ......core.goal_code_registry import GoalCodeRegistry
 from ......core.protocol_registry import ProtocolRegistry
 from ......messaging.request_context import RequestContext
 from ......messaging.responder import MockResponder
-from ......protocols.issue_credential.v1_0.controller import (
+from ......protocols.issue_credential.v2_0.controller import (
     ISSUE_VC,
     PARTICIPATE_VC_INTERACTION,
 )
-from ......protocols.issue_credential.v1_0.message_types import (
-    CONTROLLERS as issue_cred_v1_controller,
+from ......protocols.issue_credential.v2_0.message_types import (
+    CONTROLLERS as issue_cred_v2_controller,
 )
-from ......protocols.present_proof.v1_0.message_types import (
+from ......protocols.present_proof.v2_0.message_types import (
     CONTROLLERS as pres_proof_v1_controller,
 )
 from ......tests import mock
@@ -31,7 +31,7 @@ async def request_context():
     protocol_registry = ProtocolRegistry()
     goal_code_registry = GoalCodeRegistry()
     protocol_registry.register_message_types({TEST_MESSAGE_TYPE: object()})
-    goal_code_registry.register_controllers(issue_cred_v1_controller)
+    goal_code_registry.register_controllers(issue_cred_v2_controller)
     profile = ctx.profile
     profile.context.injector.bind_instance(ProtocolRegistry, protocol_registry)
     profile.context.injector.bind_instance(GoalCodeRegistry, goal_code_registry)

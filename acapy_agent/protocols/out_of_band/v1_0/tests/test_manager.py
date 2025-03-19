@@ -1,14 +1,13 @@
 """Test OOB Manager."""
 
 import base64
+import json
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
-import json
 from typing import List
 from unittest import IsolatedAsyncioTestCase
 from unittest.mock import ANY
 
-from .. import manager as test_module
 from .....connections.models.conn_record import ConnRecord
 from .....connections.models.connection_target import ConnectionTarget
 from .....connections.models.diddoc import DIDDoc, PublicKey, PublicKeyType, Service
@@ -35,18 +34,6 @@ from ....coordinate_mediation.v1_0.models.mediation_record import MediationRecor
 from ....coordinate_mediation.v1_0.route_manager import RouteManager
 from ....didcomm_prefix import DIDCommPrefix
 from ....didexchange.v1_0.manager import DIDXManager
-from ....issue_credential.v1_0.message_types import CREDENTIAL_OFFER
-from ....issue_credential.v1_0.messages.credential_offer import (
-    CredentialOffer as V10CredOffer,
-)
-from ....issue_credential.v1_0.messages.inner.credential_preview import (
-    CredAttrSpec as V10CredAttrSpec,
-)
-from ....issue_credential.v1_0.messages.inner.credential_preview import (
-    CredentialPreview as V10CredentialPreview,
-)
-from ....issue_credential.v1_0.models.credential_exchange import V10CredentialExchange
-from ....issue_credential.v1_0.tests import INDY_OFFER
 from ....issue_credential.v2_0.message_types import (
     ATTACHMENT_FORMAT as V20_CRED_ATTACH_FORMAT,
 )
@@ -57,22 +44,19 @@ from ....issue_credential.v2_0.messages.inner.cred_preview import (
     V20CredAttrSpec,
     V20CredPreview,
 )
-from ....present_proof.v1_0.message_types import (
-    ATTACH_DECO_IDS as V10_PRES_ATTACH_FORMAT,
-)
-from ....present_proof.v1_0.message_types import PRESENTATION_REQUEST
-from ....present_proof.v1_0.messages.presentation_request import PresentationRequest
+from ....issue_credential.v2_0.tests import INDY_OFFER
 from ....present_proof.v2_0.message_types import (
     ATTACHMENT_FORMAT as V20_PRES_ATTACH_FORMAT,
 )
 from ....present_proof.v2_0.message_types import PRES_20_REQUEST
 from ....present_proof.v2_0.messages.pres_format import V20PresFormat
 from ....present_proof.v2_0.messages.pres_request import V20PresRequest
+from .. import manager as test_module
 from ..manager import (
-    OutOfBandManager,
-    OutOfBandManagerError,
     REUSE_ACCEPTED_WEBHOOK_TOPIC,
     REUSE_WEBHOOK_TOPIC,
+    OutOfBandManager,
+    OutOfBandManagerError,
 )
 from ..messages.invitation import HSProto, InvitationMessage
 from ..messages.invitation import Service as OobService
@@ -186,29 +170,6 @@ class TestConfig:
         },
     }
 
-    PRES_REQ_V1 = PresentationRequest(
-        comment="Test",
-        request_presentations_attach=[
-            AttachDecorator.data_base64(
-                mapping=INDY_PROOF_REQ,
-                ident=V10_PRES_ATTACH_FORMAT[PRESENTATION_REQUEST],
-            )
-        ],
-    )
-    pres_req_dict = PRES_REQ_V1.request_presentations_attach[0].serialize()
-    req_attach_v1 = {
-        "@id": "request-0",
-        "mime-type": "application/json",
-        "data": {
-            "json": {
-                "@type": DIDCommPrefix.qualify_current(PRESENTATION_REQUEST),
-                "@id": "12345678-0123-4567-1234-567812345678",
-                "comment": "some comment",
-                "request_presentations~attach": [pres_req_dict],
-            }
-        },
-    }
-
     PRES_REQ_V2 = V20PresRequest(
         comment="some comment",
         will_confirm=True,
@@ -239,17 +200,6 @@ class TestConfig:
         request_presentations_attach=[
             AttachDecorator.data_json(mapping=DIF_PROOF_REQ, ident="dif")
         ],
-    )
-
-    CRED_OFFER_V1 = V10CredOffer(
-        credential_preview=V10CredentialPreview(
-            attributes=(
-                V10CredAttrSpec(name="legalName", value="value"),
-                V10CredAttrSpec(name="jurisdictionId", value="value"),
-                V10CredAttrSpec(name="incorporationDate", value="value"),
-            )
-        ),
-        offers_attach=[V10CredOffer.wrap_indy_offer(INDY_OFFER)],
     )
 
     CRED_OFFER_V2 = V20CredOffer(
@@ -493,88 +443,13 @@ class TestOOBManager(IsolatedAsyncioTestCase, TestConfig):
             )
         assert "Invitation must include" in str(context.exception)
 
-    async def test_create_invitation_attachment_v1_0_cred_offer(self):
-        self.profile.context.update_settings({"public_invites": True})
-        with (
-            mock.patch.object(
-                AskarWallet, "get_public_did", autospec=True
-            ) as mock_wallet_get_public_did,
-            mock.patch.object(
-                V10CredentialExchange,
-                "retrieve_by_id",
-                mock.CoroutineMock(),
-            ) as mock_retrieve_cxid,
-        ):
-            mock_wallet_get_public_did.return_value = DIDInfo(
-                TestConfig.test_did,
-                TestConfig.test_verkey,
-                None,
-                method=SOV,
-                key_type=ED25519,
-            )
-            mock_retrieve_cxid.return_value = mock.MagicMock(
-                credential_offer_dict=self.CRED_OFFER_V1
-            )
-            invi_rec = await self.manager.create_invitation(
-                my_endpoint=TestConfig.test_endpoint,
-                public=True,
-                hs_protos=[HSProto.RFC23],
-                multi_use=False,
-                attachments=[{"type": "credential-offer", "id": "dummy-id"}],
-            )
-
-            mock_retrieve_cxid.assert_called_once_with(ANY, "dummy-id")
-            assert isinstance(invi_rec, InvitationRecord)
-            assert invi_rec.invitation.handshake_protocols
-            assert invi_rec.invitation.requests_attach[0].content[
-                "@type"
-            ] == DIDCommPrefix.qualify_current(CREDENTIAL_OFFER)
-
-    async def test_create_invitation_attachment_v1_0_cred_offer_no_handshake(self):
-        self.profile.context.update_settings({"public_invites": True})
-        with (
-            mock.patch.object(
-                AskarWallet, "get_public_did", autospec=True
-            ) as mock_wallet_get_public_did,
-            mock.patch.object(
-                V10CredentialExchange,
-                "retrieve_by_id",
-                mock.CoroutineMock(),
-            ) as mock_retrieve_cxid,
-        ):
-            mock_wallet_get_public_did.return_value = DIDInfo(
-                TestConfig.test_did,
-                TestConfig.test_verkey,
-                None,
-                method=SOV,
-                key_type=ED25519,
-            )
-            mock_retrieve_cxid.return_value = mock.MagicMock(
-                credential_offer_dict=self.CRED_OFFER_V1
-            )
-            invi_rec = await self.manager.create_invitation(
-                my_endpoint=TestConfig.test_endpoint,
-                public=True,
-                hs_protos=None,
-                multi_use=False,
-                attachments=[{"type": "credential-offer", "id": "dummy-id"}],
-            )
-
-            mock_retrieve_cxid.assert_called_once_with(ANY, "dummy-id")
-            assert isinstance(invi_rec, InvitationRecord)
-            assert not invi_rec.invitation.handshake_protocols
-            assert invi_rec.invitation.requests_attach[0].content == {
-                **self.CRED_OFFER_V1.serialize(),
-                "~thread": {"pthid": invi_rec.invi_msg_id},
-            }
-
     async def test_create_invitation_attachment_v2_0_cred_offer(self):
         with (
             mock.patch.object(
                 AskarWallet, "get_public_did", autospec=True
             ) as mock_wallet_get_public_did,
             mock.patch.object(
-                test_module.V10CredentialExchange,
+                test_module.V20CredExRecord,
                 "retrieve_by_id",
                 mock.CoroutineMock(),
             ) as mock_retrieve_cxid_v1,
@@ -609,44 +484,6 @@ class TestOOBManager(IsolatedAsyncioTestCase, TestConfig):
             assert "~thread" in attach and "pthid" in attach["~thread"]
             assert attach["~thread"]["pthid"] == invi_rec.invi_msg_id
 
-    async def test_create_invitation_attachment_present_proof_v1_0(self):
-        self.profile.context.update_settings({"public_invites": True})
-        with (
-            mock.patch.object(
-                AskarWallet, "get_public_did", autospec=True
-            ) as mock_wallet_get_public_did,
-            mock.patch.object(
-                test_module.V10PresentationExchange,
-                "retrieve_by_id",
-                mock.CoroutineMock(),
-            ) as mock_retrieve_pxid,
-        ):
-            mock_wallet_get_public_did.return_value = DIDInfo(
-                TestConfig.test_did,
-                TestConfig.test_verkey,
-                None,
-                method=SOV,
-                key_type=ED25519,
-            )
-            mock_retrieve_pxid.return_value = mock.MagicMock(
-                presentation_request_dict=self.PRES_REQ_V1
-            )
-            invi_rec = await self.manager.create_invitation(
-                my_endpoint=TestConfig.test_endpoint,
-                public=True,
-                hs_protos=[test_module.HSProto.RFC23],
-                multi_use=False,
-                attachments=[{"type": "present-proof", "id": "dummy-id"}],
-            )
-
-            mock_retrieve_pxid.assert_called_once_with(ANY, "dummy-id")
-            assert isinstance(invi_rec, InvitationRecord)
-            assert invi_rec.invitation.handshake_protocols
-            assert invi_rec.invitation.requests_attach[0].content == {
-                **self.PRES_REQ_V1.serialize(),
-                "~thread": {"pthid": invi_rec.invi_msg_id},
-            }
-
     async def test_create_invitation_attachment_present_proof_v2_0(self):
         self.profile.context.update_settings({"public_invites": True})
         with (
@@ -654,7 +491,7 @@ class TestOOBManager(IsolatedAsyncioTestCase, TestConfig):
                 AskarWallet, "get_public_did", autospec=True
             ) as mock_wallet_get_public_did,
             mock.patch.object(
-                test_module.V10PresentationExchange,
+                test_module.V20PresExRecord,
                 "retrieve_by_id",
                 mock.CoroutineMock(),
             ) as mock_retrieve_pxid_1,
@@ -1575,7 +1412,7 @@ class TestOOBManager(IsolatedAsyncioTestCase, TestConfig):
 
     async def test_request_attach_oob_message_processor_connectionless(self):
         requests_attach: List[AttachDecorator] = [
-            AttachDecorator.deserialize(deepcopy(TestConfig.req_attach_v1))
+            AttachDecorator.deserialize(deepcopy(TestConfig.req_attach_v2))
         ]
 
         mock_oob_processor = mock.MagicMock(OobMessageProcessor, autospec=True)
@@ -1644,7 +1481,7 @@ class TestOOBManager(IsolatedAsyncioTestCase, TestConfig):
         )
 
         requests_attach: List[AttachDecorator] = [
-            AttachDecorator.deserialize(deepcopy(TestConfig.req_attach_v1))
+            AttachDecorator.deserialize(deepcopy(TestConfig.req_attach_v2))
         ]
 
         mock_oob_processor = mock.MagicMock(OobMessageProcessor, autospec=True)
@@ -1679,46 +1516,45 @@ class TestOOBManager(IsolatedAsyncioTestCase, TestConfig):
             )
 
     async def test_request_attach_wait_for_conn_rec_active(self):
-        async with self.profile.session() as session:
-            self.profile.context.update_settings({"public_invites": True})
-            test_exist_conn = ConnRecord(
-                my_did=TestConfig.test_did,
-                their_did=TestConfig.test_target_did,
-                their_public_did=TestConfig.test_target_did,
-                invitation_msg_id="12345678-0123-4567-1234-567812345678",
-                their_role=ConnRecord.Role.REQUESTER,
+        self.profile.context.update_settings({"public_invites": True})
+        test_exist_conn = ConnRecord(
+            my_did=TestConfig.test_did,
+            their_did=TestConfig.test_target_did,
+            their_public_did=TestConfig.test_target_did,
+            invitation_msg_id="12345678-0123-4567-1234-567812345678",
+            their_role=ConnRecord.Role.REQUESTER,
+        )
+
+        with (
+            mock.patch.object(
+                OutOfBandManager, "_wait_for_conn_rec_active"
+            ) as mock_wait_for_conn_rec_active,
+            mock.patch.object(
+                ConnRecord,
+                "find_existing_connection",
+                mock.CoroutineMock(),
+            ) as oob_mgr_find_existing_conn,
+        ):
+            oob_mgr_find_existing_conn.return_value = test_exist_conn
+            mock_wait_for_conn_rec_active.return_value = None
+            oob_invitation = InvitationMessage(
+                handshake_protocols=[
+                    pfx.qualify(HSProto.RFC23.name) for pfx in DIDCommPrefix
+                ],
+                services=[TestConfig.test_target_did],
+                requests_attach=[
+                    AttachDecorator.deserialize(deepcopy(TestConfig.req_attach_v2))
+                ],
             )
 
-            with (
-                mock.patch.object(
-                    OutOfBandManager, "_wait_for_conn_rec_active"
-                ) as mock_wait_for_conn_rec_active,
-                mock.patch.object(
-                    ConnRecord,
-                    "find_existing_connection",
-                    mock.CoroutineMock(),
-                ) as oob_mgr_find_existing_conn,
-            ):
-                oob_mgr_find_existing_conn.return_value = test_exist_conn
-                mock_wait_for_conn_rec_active.return_value = None
-                oob_invitation = InvitationMessage(
-                    handshake_protocols=[
-                        pfx.qualify(HSProto.RFC23.name) for pfx in DIDCommPrefix
-                    ],
-                    services=[TestConfig.test_target_did],
-                    requests_attach=[
-                        AttachDecorator.deserialize(deepcopy(TestConfig.req_attach_v1))
-                    ],
+            with self.assertRaises(test_module.OutOfBandManagerError) as err:
+                await self.manager.receive_invitation(
+                    oob_invitation, use_existing_connection=True
                 )
-
-                with self.assertRaises(test_module.OutOfBandManagerError) as err:
-                    oob_record = await self.manager.receive_invitation(
-                        oob_invitation, use_existing_connection=True
-                    )
-                assert (
-                    "Connection not ready to process attach message for connection_id:"
-                    in err.exception.message
-                )
+            assert (
+                "Connection not ready to process attach message for connection_id:"
+                in err.exception.message
+            )
 
     async def test_service_decorator_from_service_did(self):
         did = "did:sov:something"
