@@ -17,7 +17,8 @@ from marshmallow.validate import Range
 from ....admin.decorators.auth import tenant_authentication
 from ....admin.request_context import AdminRequestContext
 from ....anoncreds.holder import AnonCredsHolder, AnonCredsHolderError
-from ....anoncreds.models.presentation_request import AnoncredsPresentationRequestSchema
+from ....anoncreds.models.presentation_request import AnonCredsPresentationRequestSchema
+from ....anoncreds.models.proof import AnonCredsPresSpecSchema
 from ....connections.models.conn_record import ConnRecord
 from ....indy.holder import IndyHolder, IndyHolderError
 from ....indy.models.cred_precis import IndyCredPrecisSchema
@@ -60,12 +61,7 @@ from ..dif.pres_request_schema import DIFPresSpecSchema, DIFProofRequestSchema
 from . import problem_report_for_record, report_problem
 from .formats.handler import V20PresFormatHandlerError
 from .manager import V20PresManager
-from .message_types import (
-    ATTACHMENT_FORMAT,
-    PRES_20_PROPOSAL,
-    PRES_20_REQUEST,
-    SPEC_URI,
-)
+from .message_types import ATTACHMENT_FORMAT, PRES_20_PROPOSAL, PRES_20_REQUEST, SPEC_URI
 from .messages.pres_format import V20PresFormat
 from .messages.pres_problem_report import ProblemReportReason
 from .messages.pres_proposal import V20PresProposal
@@ -125,7 +121,7 @@ class V20PresProposalByFormatSchema(OpenAPISchema):
     """Schema for presentation proposal per format."""
 
     anoncreds = fields.Nested(
-        AnoncredsPresentationRequestSchema,
+        AnonCredsPresentationRequestSchema,
         required=False,
         metadata={"description": "Presentation proposal for anoncreds"},
     )
@@ -204,7 +200,7 @@ class V20PresRequestByFormatSchema(OpenAPISchema):
     """Presentation request per format."""
 
     anoncreds = fields.Nested(
-        AnoncredsPresentationRequestSchema,
+        AnonCredsPresentationRequestSchema,
         required=False,
         metadata={"description": "Presentation proposal for anoncreds"},
     )
@@ -233,7 +229,8 @@ class V20PresRequestByFormatSchema(OpenAPISchema):
         """
         if not any(f.api in data for f in V20PresFormat.Format):
             raise ValidationError(
-                "V20PresRequestByFormatSchema requires indy, dif, or both"
+                "V20PresRequestByFormatSchema requires at least one of: "
+                "anoncreds, indy, dif"
             )
 
 
@@ -310,7 +307,7 @@ class V20PresSpecByFormatRequestSchema(AdminAPIMessageTracingSchema):
     """Presentation specification schema by format, for send-presentation request."""
 
     anoncreds = fields.Nested(
-        IndyPresSpecSchema,
+        AnonCredsPresSpecSchema,
         required=False,
         metadata={"description": "Presentation specification for anoncreds"},
     )
@@ -1236,7 +1233,7 @@ async def present_proof_send_presentation(request: web.BaseRequest):
         raise web.HTTPBadRequest(
             reason=(
                 "No presentation format specification provided, "
-                "either dif or indy must be included. "
+                "either dif, anoncreds or indy must be included. "
                 "In case of DIF, if no additional specification "
                 'needs to be provided then include "dif": {}'
             )

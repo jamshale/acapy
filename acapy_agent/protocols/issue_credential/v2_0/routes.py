@@ -141,8 +141,8 @@ class V20CredStoreRequestSchema(OpenAPISchema):
     credential_id = fields.Str(required=False)
 
 
-class V20CredFilterAnoncredsSchema(OpenAPISchema):
-    """Anoncreds credential filtration criteria."""
+class V20CredFilterAnonCredsSchema(OpenAPISchema):
+    """AnonCreds credential filtration criteria."""
 
     schema_issuer_id = fields.Str(
         required=False,
@@ -275,7 +275,7 @@ class V20CredFilterSchema(OpenAPISchema):
     """Credential filtration criteria."""
 
     anoncreds = fields.Nested(
-        V20CredFilterAnoncredsSchema,
+        V20CredFilterAnonCredsSchema,
         required=False,
         metadata={"description": "Credential filter for anoncreds"},
     )
@@ -868,7 +868,12 @@ async def credential_exchange_send(request: web.BaseRequest):
         V20CredManagerError,
         V20CredFormatError,
     ) as err:
-        LOGGER.exception("Error preparing credential offer")
+        # Only log full exception for unexpected errors
+        if isinstance(err, (V20CredFormatError, V20CredManagerError)):
+            LOGGER.warning(f"Error preparing credential offer: {err.roll_up}")
+        else:
+            LOGGER.exception("Error preparing credential offer")
+
         if cred_ex_record:
             async with profile.session() as session:
                 await cred_ex_record.save_error_state(session, reason=err.roll_up)

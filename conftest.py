@@ -33,10 +33,10 @@ def stub_anoncreds() -> Stub:
         _ = generate_nonce()
         return Stub(None)
     except ImportError:
-        print("Skipping Anoncreds-specific tests: anoncreds module not installed.")
+        print("Skipping AnonCreds-specific tests: anoncreds module not installed.")
     except OSError:
         print(
-            "Skipping Anoncreds-specific tests: anoncreds shared library"
+            "Skipping AnonCreds-specific tests: anoncreds shared library"
             "could not be loaded."
         )
 
@@ -147,7 +147,7 @@ def stub_ursa_bbs_signatures() -> Stub:
 def pytest_sessionstart(session):
     global STUBS, POSTGRES_URL, ENABLE_PTVSD
     args = sys.argv
-    
+
     # copied from __main__.py:init_debug
     ENABLE_PTVSD = os.getenv("ENABLE_PTVSD", "").lower()
     ENABLE_PTVSD = ENABLE_PTVSD and ENABLE_PTVSD not in ("false", "0")
@@ -192,7 +192,7 @@ def pytest_runtest_setup(item: pytest.Item):
     global STUBS
 
     if tuple(item.iter_markers(name="anoncreds")) and not STUBS["anoncreds"].found:
-        pytest.skip("test requires Anoncreds support")
+        pytest.skip("test requires AnonCreds support")
 
     if tuple(item.iter_markers(name="askar")) and not STUBS["askar"].found:
         pytest.skip("test requires Askar support")

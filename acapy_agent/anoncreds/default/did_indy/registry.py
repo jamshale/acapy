@@ -17,7 +17,7 @@ from ...models.revocation import (
     RevRegDefResult,
 )
 from ...models.schema import AnonCredsSchema, GetSchemaResult, SchemaResult
-from ...models.schema_info import AnoncredsSchemaInfo
+from ...models.schema_info import AnonCredsSchemaInfo
 
 LOGGER = logging.getLogger(__name__)
 
@@ -40,9 +40,9 @@ class DIDIndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         return self._supported_identifiers_regex
         # TODO: fix regex (too general)
 
-    async def setup(self, context: InjectionContext):
+    async def setup(self, context: InjectionContext) -> None:
         """Setup."""
-        print("Successfully registered DIDIndyRegistry")
+        LOGGER.info("Successfully registered DIDIndyRegistry")
 
     async def get_schema(self, profile: Profile, schema_id: str) -> GetSchemaResult:
         """Get a schema from the registry."""
@@ -122,6 +122,6 @@ class DIDIndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
     async def get_schema_info_by_id(
         self, profile: Profile, schema_id: str
-    ) -> AnoncredsSchemaInfo:
+    ) -> AnonCredsSchemaInfo:
         """Get a schema info from the registry."""
         return await super().get_schema_info_by_id(schema_id)

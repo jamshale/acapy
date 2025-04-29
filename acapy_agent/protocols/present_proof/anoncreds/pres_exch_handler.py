@@ -14,7 +14,7 @@ from ....anoncreds.models.utils import (
 )
 from ....anoncreds.registry import AnonCredsRegistry
 from ....anoncreds.revocation import AnonCredsRevocation
-from ....askar.profile_anon import AskarAnoncredsProfile
+from ....askar.profile_anon import AskarAnonCredsProfile
 from ....core.error import BaseError
 from ....core.profile import Profile
 
@@ -22,7 +22,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class AnonCredsPresExchHandlerError(BaseError):
-    """Base class for Anoncreds Presentation Exchange related errors."""
+    """Base class for AnonCreds Presentation Exchange related errors."""
 
 
 class AnonCredsProofRequestContainer(Protocol):
@@ -228,11 +228,11 @@ class AnonCredsPresExchHandler:
         pres_ex_record: AnonCredsProofRequestContainer,
         requested_credentials: Optional[dict] = None,
     ) -> dict:
-        """Return Anoncreds proof request as dict."""
+        """Return AnonCreds proof request as dict."""
 
         # If not anoncreds capable, try to use indy handler. This should be removed when
         # indy filter is completely retired
-        if not isinstance(self._profile, AskarAnoncredsProfile):
+        if not isinstance(self._profile, AskarAnonCredsProfile):
             from ..indy.pres_exch_handler import IndyPresExchHandler
 
             handler = IndyPresExchHandler(self._profile)
