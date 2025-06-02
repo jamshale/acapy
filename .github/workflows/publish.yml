@@ -80,14 +80,14 @@ jobs:
         include:
           - image-type: standard
             image-name: acapy-agent
-            # linux/386 platform support has been disabled pending a permanent fix for https://github.com/openwallet-foundation/acapy/issues/2124
+            # linux/386 platform support has been disabled pending a permanent fix for https://github.com/jamshale/acapy/issues/2124
             # platforms: linux/amd64,linux/arm64,linux/386
             platforms: linux/amd64,linux/arm64
             acapy-reqs: ""
           - image-type: bbs
             image-name: acapy-agent-bbs
             # Because of BBS, only linux/amd64 is supported for the extended image
-            # https://github.com/openwallet-foundation/acapy/issues/2124#issuecomment-2293569659
+            # https://github.com/jamshale/acapy/issues/2124#issuecomment-2293569659
             platforms: linux/amd64
             acapy-reqs: "[askar,bbs,didcommv2]"
 
