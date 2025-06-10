@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   recreate-lts-release:
-    if: endsWith(github.event.release.target_commitish, '.lts')
+    if: startsWith(github.event.release.tag_name, '1.2.')
     name: Recreate LTS Release
     runs-on: ubuntu-latest
     outputs:
