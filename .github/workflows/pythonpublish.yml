@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/acapy-agent
+      url: https://pypi.org/p/acapy-agent-jamie-testing
     permissions:
       id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
