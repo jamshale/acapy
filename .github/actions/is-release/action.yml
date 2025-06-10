@@ -15,7 +15,7 @@ runs:
       continue-on-error: true
       run: |
         # Get the diff between the current commit and the last merge commit on the upstream/main branch
-        git remote add upstream https://github.com/openwallet-foundation/acapy.git
+        git remote add upstream https://github.com/jamshale/acapy.git
         git fetch upstream
         
         last_merge=$(git rev-list --no-merges -n 1 upstream/main)
