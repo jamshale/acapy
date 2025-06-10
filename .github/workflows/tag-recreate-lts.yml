@@ -6,9 +6,6 @@ name: Tag and Recreate LTS Release
 on:
   release:
     types: [published]
-  push:
-    branches: 
-      - '*.lts'
       
 permissions:
   contents: write
@@ -16,6 +13,7 @@ permissions:
 
 jobs:
   recreate-lts-release:
+    if: endsWith(github.event.release.target_commitish, '.lts')
     name: Recreate LTS Release
     runs-on: ubuntu-latest
     outputs:
