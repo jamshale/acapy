@@ -61,12 +61,6 @@ jobs:
       - name: Run Scenario Tests
         if: steps.check-if-scenarios-or-src-changed.outputs.run_tests != 'false'
         run: |
-          # Build the docker image for testing
-          docker build -t acapy-test -f docker/Dockerfile.run .
-          cd scenarios
-          poetry install --no-root
-          poetry run pytest -m examples
-        run: |
           set -euo pipefail
 
           for examples_file in $(find scenarios -type f -name 'examples'); do
