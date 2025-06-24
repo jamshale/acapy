@@ -63,6 +63,8 @@ jobs:
         run: |
           set -euo pipefail
 
+          docker build -t acapy-test -f docker/Dockerfile.run .
+
           cd scenarios
 
           for examples_file in $(find examples -type f -name 'example.py'); do
