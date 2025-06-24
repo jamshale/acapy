@@ -4,6 +4,7 @@ This script is for you to use to reproduce a bug or demonstrate a feature.
 """
 
 import asyncio
+import sys
 from datetime import datetime
 from os import getenv
 from secrets import token_hex
@@ -555,4 +556,8 @@ async def main():
 
 if __name__ == "__main__":
     logging_to_stdout()
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)

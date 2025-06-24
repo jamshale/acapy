@@ -4,6 +4,7 @@ This script is for you to use to reproduce a bug or demonstrate a feature.
 """
 
 import asyncio
+import sys
 from os import getenv
 
 from acapy_controller import Controller
@@ -248,8 +249,13 @@ async def main():
             agency_container.stop()
             wait_until_healthy(client, agency_id, is_healthy=False)
             agency_container.remove()
+        sys.exit(0)
 
 
 if __name__ == "__main__":
     logging_to_stdout()
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)

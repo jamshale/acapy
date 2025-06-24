@@ -26,7 +26,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     # Run on openwallet-foundation and non-draft PRs or on non-PR events
-    if: (github.repository == 'openwallet-foundation/acapy') && ((github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event_name != 'pull_request'))
+    if: (github.repository == 'jamshale/acapy') && ((github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event_name != 'pull_request'))
     steps:
       - name: checkout-acapy
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -61,8 +61,25 @@ jobs:
       - name: Run Scenario Tests
         if: steps.check-if-scenarios-or-src-changed.outputs.run_tests != 'false'
         run: |
-          # Build the docker image for testing
+          set -euo pipefail
+
           docker build -t acapy-test -f docker/Dockerfile.run .
+
           cd scenarios
-          poetry install --no-root
-          poetry run pytest -m examples
+
+          for examples_file in $(find examples -type f -name 'example.py'); do
+            examples_dir=$(dirname "$examples_file")
+            echo -e "\n🔎 Running scenario in: $examples_dir"
+            cd "$examples_dir"
+            docker compose build
+            docker compose up -d
+            if ! docker compose run --rm example; then
+              echo "❌ Tests failed for $examples_dir - dumping logs:"
+              docker compose logs
+              docker compose down --remove-orphans
+              exit 1
+            fi
+            echo "✅ Tests passed for $examples_dir"
+            docker compose down --remove-orphans
+            cd - > /dev/null
+          done
