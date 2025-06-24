@@ -552,7 +552,6 @@ async def main():
         )
 
         await holder_anoncreds.record(topic="revocation-notification")
-        sys.exit(0)
 
 
 if __name__ == "__main__":
