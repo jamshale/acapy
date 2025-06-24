@@ -71,14 +71,19 @@ jobs:
             examples_dir=$(dirname "$examples_file")
             echo -e "\n🔎 Running scenario in: $examples_dir"
             cd "$examples_dir"
+
             docker compose build
-            if ! docker compose up --abort-on-container-exit --exit-code-from example; then
-              echo "❌ Tests failed for $dir - dumping logs:"
+            docker compose up -d
+
+            echo "⏳ Waiting for example to finish..."
+            if ! docker compose run --rm example; then
+              echo "❌ Example failed. Dumping logs..."
               docker compose logs
-              docker compose down --remove-orphans
+              docker compose down --remove-orphans --timeout 5
               exit 1
             fi
-            echo "✅ Tests passed for $examples_dir"
-            docker compose down --remove-orphans
+
+            docker compose down --remove-orphans --timeout 5
+            echo "✅ Scenario passed"
             cd - > /dev/null
           done
