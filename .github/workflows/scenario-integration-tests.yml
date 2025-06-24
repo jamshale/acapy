@@ -63,12 +63,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          for examples_file in $(find scenarios -type f -name 'examples'); do
+          for examples_file in $(find examples -type f -name 'example.py'); do
             examples_dir=$(dirname "$examples_file")
             echo -e "\n🔎 Running scenario in: $examples_dir"
             cd "$examples_dir"
             docker compose build
-            if ! docker compose up --exit-code-from tests; then
+            if ! docker compose up --exit-code-from example; then
               echo "❌ Tests failed for $dir - dumping logs:"
               docker compose logs
               docker compose down --remove-orphans
