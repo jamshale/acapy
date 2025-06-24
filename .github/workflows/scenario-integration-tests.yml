@@ -76,7 +76,7 @@ jobs:
             docker compose up -d
 
             echo "⏳ Waiting for example to finish..."
-            if ! docker compose run --rm example; then
+            if ! docker compose run --rm controller; then
               echo "❌ Example failed. Dumping logs..."
               docker compose logs
               docker compose down --remove-orphans --timeout 5
