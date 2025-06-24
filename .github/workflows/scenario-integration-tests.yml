@@ -74,7 +74,7 @@ jobs:
             docker compose build
             docker compose up -d
             if ! docker compose run --rm example; then
-              echo "❌ Tests failed for $dir - dumping logs:"
+              echo "❌ Tests failed for $examples_dir - dumping logs:"
               docker compose logs
               docker compose down --remove-orphans
               exit 1
