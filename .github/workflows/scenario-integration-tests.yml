@@ -72,7 +72,7 @@ jobs:
             echo -e "\n🔎 Running scenario in: $examples_dir"
             cd "$examples_dir"
             docker compose build
-            if ! docker compose up --exit-code-from example; then
+            if ! docker compose up --abort-on-container-exit --exit-code-from example; then
               echo "❌ Tests failed for $dir - dumping logs:"
               docker compose logs
               docker compose down --remove-orphans
