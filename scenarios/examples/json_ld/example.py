@@ -5,6 +5,7 @@ This script is for you to use to reproduce a bug or demonstrate a feature.
 
 import asyncio
 import json
+import sys
 from datetime import date
 from os import getenv
 from uuid import uuid4
@@ -449,7 +450,13 @@ async def main():
         with section("Presentation summary", character="-"):
             print(presentation_summary(alice_pres_ex.into(V20PresExRecord)))
 
+        sys.exit(0)
+
 
 if __name__ == "__main__":
     logging_to_stdout()
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)

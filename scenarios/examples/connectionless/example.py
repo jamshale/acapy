@@ -4,6 +4,7 @@ This script is for you to use to reproduce a bug or demonstrate a feature.
 """
 
 import asyncio
+import sys
 from dataclasses import dataclass
 from os import getenv
 
@@ -284,6 +285,7 @@ async def icv1():
             credential_exchange_id=bob_cred_ex_id,
             state="credential_acked",
         )
+        sys.exit(0)
 
 
 async def main():
@@ -294,4 +296,8 @@ async def main():
 
 if __name__ == "__main__":
     logging_to_stdout()
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)

@@ -1,6 +1,7 @@
 """Test VC Holder multi-tenancy isolation."""
 
 import asyncio
+import sys
 from os import getenv
 
 from acapy_controller import Controller
@@ -88,8 +89,13 @@ async def main():
         )
         result = await bob.get("/vc/credentials")
         assert len(result["results"]) == 0
+        sys.exit(0)
 
 
 if __name__ == "__main__":
     logging_to_stdout()
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)

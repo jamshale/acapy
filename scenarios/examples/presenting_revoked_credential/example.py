@@ -5,6 +5,7 @@ This script is for you to use to reproduce a bug or demonstrate a feature.
 
 import asyncio
 import json
+import sys
 import time
 from os import getenv
 
@@ -191,8 +192,13 @@ async def main():
         # Presentation summary
         for i, pres in enumerate(presentations.results):
             print(summary(pres))
+        sys.exit(0)
 
 
 if __name__ == "__main__":
     logging_to_stdout()
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
