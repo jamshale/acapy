@@ -7,7 +7,7 @@ on:
 
 jobs:
   tests:
-    if: github.repository_owner == 'openwallet-foundation' || github.event_name == 'workflow_dispatch'
+    if: github.repository_owner == 'jamshale' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -32,7 +32,7 @@ jobs:
     outputs:
       commits_today: ${{ steps.commits.outputs.commits_today }}
       date: ${{ steps.date.outputs.date }}
-    if: github.repository_owner == 'openwallet-foundation' || github.event_name == 'workflow_dispatch'
+    if: github.repository_owner == 'jamshale' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
       - name: Print Latest Commit

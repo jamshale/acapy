@@ -20,8 +20,8 @@ defaults:
 jobs:
   test:
     runs-on: ubuntu-latest
-    # Run on openwallet-foundation and non-draft PRs or on non-PR events
-    if: (github.repository == 'openwallet-foundation/acapy') && ((github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event_name != 'pull_request'))
+    # Run on jamshale and non-draft PRs or on non-PR events
+    if: (github.repository == 'jamshale/acapy') && ((github.event_name == 'pull_request' && github.event.pull_request.draft == false) || (github.event_name != 'pull_request'))
     outputs:
       is_release: ${{ steps.check_if_release.outputs.is_release }}
     steps:
@@ -62,13 +62,13 @@ jobs:
         if: steps.check-if-src-changed.outputs.run_tests != 'false'
         run: |
           # Get AATH 
-          git clone https://github.com/openwallet-foundation/owl-agent-test-harness.git
+          git clone https://github.com/jamshale/owl-agent-test-harness.git
 
           # Change fork and branch for pull requests
           if [ ${{ github.event_name }} == 'pull_request' ]; then
             echo ${{ fromJson(steps.get_pr_data.outputs.data).head.repo.html_url }}
             echo ${{ fromJson(steps.get_pr_data.outputs.data).head.ref }}
-            sed -i 's|@git+https://github.com/openwallet-foundation/acapy@main|@git+${{ fromJson(steps.get_pr_data.outputs.data).head.repo.html_url }}@${{ fromJson(steps.get_pr_data.outputs.data).head.ref }}|g' ./owl-agent-test-harness/aries-backchannels/acapy/requirements-main.txt
+            sed -i 's|@git+https://github.com/jamshale/acapy@main|@git+${{ fromJson(steps.get_pr_data.outputs.data).head.repo.html_url }}@${{ fromJson(steps.get_pr_data.outputs.data).head.ref }}|g' ./owl-agent-test-harness/aries-backchannels/acapy/requirements-main.txt
           fi
           cat owl-agent-test-harness/aries-backchannels/acapy/requirements-main.txt
 

@@ -10,7 +10,7 @@ on:
 jobs:
   snyk:
     runs-on: ubuntu-latest
-    if: ${{ github.repository_owner == 'openwallet-foundation' }}
+    if: ${{ github.repository_owner == 'jamshale' }}
     steps:
     - uses: actions/checkout@v4
 
