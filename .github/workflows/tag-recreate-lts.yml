@@ -47,7 +47,7 @@ jobs:
 
           # Force update the tag to the current commit
           git tag -f "$LTS_TAG" $GITHUB_SHA
-          git push https://x-access-token:${{ secrets.HYPERLEDGER_GHCR_PAT }}@github.com/${{ github.repository }} -f "$LTS_TAG" 
+          git push origin -f "$LTS_TAG" 
 
           # Write release notes into env (for multiline input)
           echo "RELEASE_BODY<<EOF" >> "$GITHUB_ENV"
