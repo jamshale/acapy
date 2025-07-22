@@ -80,3 +80,4 @@ jobs:
       tag: ${{ needs.recreate-lts-release.outputs.lts_tag }}
       ref: ${{ github.event.release.tag_name }}
       platforms: linux/amd64,linux/arm64
+    secrets: inherit
