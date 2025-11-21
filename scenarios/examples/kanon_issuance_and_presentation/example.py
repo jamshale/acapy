@@ -69,6 +69,8 @@ async def main():
             ).result
             assert public_did
 
+
+
             async with ClientSession() as session:
                 register_url = genesis_url.replace("/genesis", "/register")
                 async with session.post(
