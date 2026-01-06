@@ -1,3 +1,5 @@
+"""Credential info model for AnonCreds holder credentials."""
+
 from typing import Mapping, Optional
 
 from marshmallow import EXCLUDE, fields
@@ -5,14 +7,14 @@ from marshmallow import EXCLUDE, fields
 from acapy_agent.messaging.models.base import BaseModel, BaseModelSchema
 from acapy_agent.messaging.models.openapi import OpenAPISchema
 from acapy_agent.messaging.valid import (
-    INDY_CRED_DEF_ID_EXAMPLE,
-    INDY_CRED_DEF_ID_VALIDATE,
-    INDY_CRED_REV_ID_EXAMPLE,
-    INDY_CRED_REV_ID_VALIDATE,
-    INDY_REV_REG_ID_EXAMPLE,
-    INDY_REV_REG_ID_VALIDATE,
-    INDY_SCHEMA_ID_EXAMPLE,
-    INDY_SCHEMA_ID_VALIDATE,
+    ANONCREDS_CRED_DEF_ID_EXAMPLE,
+    ANONCREDS_CRED_DEF_ID_VALIDATE,
+    ANONCREDS_CRED_REV_ID_EXAMPLE,
+    ANONCREDS_CRED_REV_ID_VALIDATE,
+    ANONCREDS_REV_REG_ID_EXAMPLE,
+    ANONCREDS_REV_REG_ID_VALIDATE,
+    ANONCREDS_SCHEMA_ID_EXAMPLE,
+    ANONCREDS_SCHEMA_ID_VALIDATE,
     UUID4_EXAMPLE,
 )
 
@@ -63,33 +65,33 @@ class CredInfoSchema(BaseModelSchema):
         metadata={"description": "Attribute names and value"},
     )
     schema_id = fields.Str(
-        validate=INDY_SCHEMA_ID_VALIDATE,
+        validate=ANONCREDS_SCHEMA_ID_VALIDATE,
         metadata={
             "description": "Schema identifier",
-            "example": INDY_SCHEMA_ID_EXAMPLE,
+            "example": ANONCREDS_SCHEMA_ID_EXAMPLE,
         },
     )
     cred_def_id = fields.Str(
-        validate=INDY_CRED_DEF_ID_VALIDATE,
+        validate=ANONCREDS_CRED_DEF_ID_VALIDATE,
         metadata={
             "description": "Credential definition identifier",
-            "example": INDY_CRED_DEF_ID_EXAMPLE,
+            "example": ANONCREDS_CRED_DEF_ID_EXAMPLE,
         },
     )
     rev_reg_id = fields.Str(
-        validate=INDY_REV_REG_ID_VALIDATE,
+        validate=ANONCREDS_REV_REG_ID_VALIDATE,
         allow_none=True,
         metadata={
             "description": "Revocation registry identifier",
-            "example": INDY_REV_REG_ID_EXAMPLE,
+            "example": ANONCREDS_REV_REG_ID_EXAMPLE,
         },
     )
     cred_rev_id = fields.Str(
-        validate=INDY_CRED_REV_ID_VALIDATE,
+        validate=ANONCREDS_CRED_REV_ID_VALIDATE,
         allow_none=True,
         metadata={
             "description": "Credential revocation identifier",
-            "example": INDY_CRED_REV_ID_EXAMPLE,
+            "example": ANONCREDS_CRED_REV_ID_EXAMPLE,
         },
     )
 

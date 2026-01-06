@@ -25,8 +25,6 @@ from ..messaging.valid import (
     ENDPOINT_VALIDATE,
     GENERIC_DID_EXAMPLE,
     GENERIC_DID_VALIDATE,
-    INDY_DID_EXAMPLE,
-    INDY_DID_VALIDATE,
     JWT_EXAMPLE,
     JWT_VALIDATE,
     NON_SD_LIST_EXAMPLE,
@@ -35,10 +33,12 @@ from ..messaging.valid import (
     RAW_ED25519_2018_PUBLIC_KEY_VALIDATE,
     SD_JWT_EXAMPLE,
     SD_JWT_VALIDATE,
+    UNQUALIFIED_OR_INDY_DID_EXAMPLE,
+    UNQUALIFIED_OR_INDY_DID_VALIDATE,
     UUID4_EXAMPLE,
     UUID4_VALIDATE,
-    IndyDID,
     StrOrDictField,
+    UnqualifiedOrIndyDID,
     Uri,
 )
 from ..protocols.coordinate_mediation.v1_0.route_manager import RouteManager
@@ -138,8 +138,11 @@ class DIDEndpointWithTypeSchema(OpenAPISchema):
 
     did = fields.Str(
         required=True,
-        validate=INDY_DID_VALIDATE,
-        metadata={"description": "DID of interest", "example": INDY_DID_EXAMPLE},
+        validate=UNQUALIFIED_OR_INDY_DID_VALIDATE,
+        metadata={
+            "description": "DID of interest",
+            "example": UNQUALIFIED_OR_INDY_DID_EXAMPLE,
+        },
     )
     endpoint = fields.Str(
         required=False,
@@ -255,8 +258,11 @@ class DIDEndpointSchema(OpenAPISchema):
 
     did = fields.Str(
         required=True,
-        validate=INDY_DID_VALIDATE,
-        metadata={"description": "DID of interest", "example": INDY_DID_EXAMPLE},
+        validate=UNQUALIFIED_OR_INDY_DID_VALIDATE,
+        metadata={
+            "description": "DID of interest",
+            "example": UNQUALIFIED_OR_INDY_DID_EXAMPLE,
+        },
     )
     endpoint = fields.Str(
         required=False,
@@ -767,7 +773,7 @@ async def promote_wallet_public_did(
     info: Optional[DIDInfo] = None
     endorser_did = None
 
-    is_indy_did = bool(IndyDID.PATTERN.match(did))
+    is_indy_did = bool(UnqualifiedOrIndyDID.PATTERN.match(did))
     # write only Indy DID
     write_ledger = is_indy_did and write_ledger
     is_ctx_admin_request = True

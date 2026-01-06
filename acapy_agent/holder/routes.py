@@ -23,13 +23,13 @@ from ..messaging.models.openapi import OpenAPISchema
 from ..messaging.valid import (
     ENDPOINT_EXAMPLE,
     ENDPOINT_VALIDATE,
-    INDY_WQL_EXAMPLE,
-    INDY_WQL_VALIDATE,
     NUM_STR_NATURAL_EXAMPLE,
     NUM_STR_NATURAL_VALIDATE,
     NUM_STR_WHOLE_EXAMPLE,
     NUM_STR_WHOLE_VALIDATE,
     UUID4_EXAMPLE,
+    WQL_EXAMPLE,
+    WQL_VALIDATE,
 )
 from ..storage.base import DEFAULT_PAGE_SIZE, MAXIMUM_PAGE_SIZE
 from ..storage.error import StorageError, StorageNotFoundError
@@ -95,8 +95,8 @@ class CredentialsListQueryStringSchema(OpenAPISchema):
     )
     wql = fields.Str(
         required=False,
-        validate=INDY_WQL_VALIDATE,
-        metadata={"description": "(JSON) WQL query", "example": INDY_WQL_EXAMPLE},
+        validate=WQL_VALIDATE,
+        metadata={"description": "(JSON) WQL query", "example": WQL_EXAMPLE},
     )
 
 

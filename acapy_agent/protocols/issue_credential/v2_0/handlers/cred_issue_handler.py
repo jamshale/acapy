@@ -2,7 +2,6 @@
 
 from .....anoncreds.holder import AnonCredsHolderError
 from .....core.oob_processor import OobMessageProcessor
-from .....indy.holder import IndyHolderError
 from .....messaging.base_handler import BaseHandler, HandlerException
 from .....messaging.models.base import BaseModelError
 from .....messaging.request_context import RequestContext
@@ -73,7 +72,6 @@ class V20CredIssueHandler(BaseHandler):
             except (
                 BaseModelError,
                 AnonCredsHolderError,
-                IndyHolderError,
                 StorageError,
                 V20CredManagerError,
             ) as err:

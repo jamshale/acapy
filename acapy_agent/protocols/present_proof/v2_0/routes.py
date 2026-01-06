@@ -29,8 +29,8 @@ from ....messaging.models.paginated_query import (
     get_paginated_query_params,
 )
 from ....messaging.valid import (
-    INDY_EXTRA_WQL_EXAMPLE,
-    INDY_EXTRA_WQL_VALIDATE,
+    EXTRA_WQL_EXAMPLE,
+    EXTRA_WQL_VALIDATE,
     NUM_STR_NATURAL_EXAMPLE,
     NUM_STR_NATURAL_VALIDATE,
     NUM_STR_WHOLE_EXAMPLE,
@@ -419,10 +419,10 @@ class V20CredentialsFetchQueryStringSchema(OpenAPISchema):
     )
     extra_query = fields.Str(
         required=False,
-        validate=INDY_EXTRA_WQL_VALIDATE,
+        validate=EXTRA_WQL_VALIDATE,
         metadata={
             "description": "(JSON) object mapping referents to extra WQL queries",
-            "example": INDY_EXTRA_WQL_EXAMPLE,
+            "example": EXTRA_WQL_EXAMPLE,
         },
     )
 
