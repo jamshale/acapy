@@ -8,14 +8,15 @@ from marshmallow.exceptions import ValidationError
 from marshmallow.fields import Field
 from marshmallow.validate import OneOf, Range, Regexp, Validator
 
-from ..ledger.endpoint_type import EndpointType as EndpointTypeEnum
-from ..revocation.models.revocation_registry import RevocationRegistry
 from ..wallet.did_posture import DIDPosture as DIDPostureEnum
 from .util import epoch_to_str
 
 B58 = alphabet if isinstance(alphabet, str) else alphabet.decode("ascii")
 
 EXAMPLE_TIMESTAMP = 1640995199  # 2021-12-31 23:59:59Z
+
+MIN_SIZE = 4
+MAX_SIZE = 32768
 
 
 class StrOrDictField(Field):
@@ -154,12 +155,12 @@ class IndyRevRegSize(Range):
     def __init__(self):
         """Initialize the instance."""
         super().__init__(
-            min=RevocationRegistry.MIN_SIZE,
-            max=RevocationRegistry.MAX_SIZE,
+            min=MIN_SIZE,
+            max=MAX_SIZE,
             error=(
                 "Value {input} must be an integer between "
-                f"{RevocationRegistry.MIN_SIZE} and "
-                f"{RevocationRegistry.MAX_SIZE} inclusively"
+                f"{MIN_SIZE} and "
+                f"{MAX_SIZE} inclusively"
             ),
         )
 
@@ -168,8 +169,8 @@ class IndyRevRegSize(Range):
         if not isinstance(value, int):
             raise ValidationError(
                 "Value {input} must be an integer between "
-                f"{RevocationRegistry.MIN_SIZE} and "
-                f"{RevocationRegistry.MAX_SIZE} inclusively"
+                f"{MIN_SIZE} and "
+                f"{MAX_SIZE} inclusively"
             )
         super().__call__(value)
 
@@ -794,12 +795,12 @@ class Endpoint(Regexp):  # using Regexp brings in nice visual validator cue
 class EndpointType(OneOf):
     """Validate value against allowed endpoint/service types."""
 
-    EXAMPLE = EndpointTypeEnum.ENDPOINT.w3c
+    EXAMPLE = "w3c"
 
     def __init__(self):
         """Initialize the instance."""
         super().__init__(
-            choices=[e.w3c for e in EndpointTypeEnum],
+            choices=["w3c"],
             error="Value {input} must be one of {choices}",
         )
 

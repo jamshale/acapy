@@ -19,13 +19,11 @@ from ....admin.decorators.auth import tenant_authentication
 from ....admin.request_context import AdminRequestContext
 from ....anoncreds.holder import AnonCredsHolderError
 from ....anoncreds.issuer import AnonCredsIssuerError
+from ....anoncreds.models.issuer_cred_rev_record import IssuerCredRevRecord
 from ....anoncreds.revocation.revocation import AnonCredsRevocationError
 from ....connections.models.conn_record import ConnRecord
 from ....core.event_bus import EventBus, EventWithMetadata
 from ....core.profile import Profile
-from ....indy.holder import IndyHolderError
-from ....indy.issuer import IndyIssuerError
-from ....ledger.error import LedgerError
 from ....messaging.decorators.attach_decorator import AttachDecorator
 from ....messaging.models.base import BaseModelError
 from ....messaging.models.openapi import OpenAPISchema
@@ -48,7 +46,6 @@ from ....messaging.valid import (
     UUID4_EXAMPLE,
     UUID4_VALIDATE,
 )
-from ....revocation.models.issuer_cred_rev_record import IssuerCredRevRecord
 from ....storage.error import StorageError, StorageNotFoundError
 from ....utils.tracing import AdminAPIMessageTracingSchema, get_timer, trace_event
 from ....vc.ld_proofs.error import LinkedDataProofException
@@ -896,7 +893,6 @@ async def credential_exchange_send(request: web.BaseRequest):
 
     except (
         BaseModelError,
-        LedgerError,
         StorageError,
         V20CredManagerError,
         V20CredFormatError,
@@ -1118,7 +1114,6 @@ async def credential_exchange_create_free_offer(request: web.BaseRequest):
         result = cred_ex_record.serialize()
     except (
         BaseModelError,
-        LedgerError,
         V20CredFormatError,
         V20CredManagerError,
     ) as err:
@@ -1203,8 +1198,6 @@ async def credential_exchange_send_free_offer(request: web.BaseRequest):
     except (
         BaseModelError,
         AnonCredsIssuerError,
-        IndyIssuerError,
-        LedgerError,
         StorageNotFoundError,
         V20CredFormatError,
         V20CredManagerError,
@@ -1306,8 +1299,6 @@ async def credential_exchange_send_bound_offer(request: web.BaseRequest):
     except (
         BaseModelError,
         AnonCredsIssuerError,
-        IndyIssuerError,
-        LedgerError,
         StorageError,
         V20CredFormatError,
         V20CredManagerError,
@@ -1420,8 +1411,6 @@ async def credential_exchange_send_free_request(request: web.BaseRequest):
     except (
         BaseModelError,
         AnonCredsHolderError,
-        IndyHolderError,
-        LedgerError,
         StorageError,
         V20CredManagerError,
     ) as err:
@@ -1540,8 +1529,6 @@ async def credential_exchange_send_bound_request(request: web.BaseRequest):
     except (
         BaseModelError,
         AnonCredsHolderError,
-        IndyHolderError,
-        LedgerError,
         StorageError,
         V20CredFormatError,
         V20CredManagerError,
@@ -1636,8 +1623,6 @@ async def credential_exchange_issue(request: web.BaseRequest):
         BaseModelError,
         AnonCredsIssuerError,
         AnonCredsRevocationError,
-        IndyIssuerError,
-        LedgerError,
         StorageError,
         V20CredFormatError,
         V20CredManagerError,
@@ -1724,7 +1709,6 @@ async def credential_exchange_store(request: web.BaseRequest):
 
     except (
         AnonCredsHolderError,
-        IndyHolderError,
         StorageError,
         V20CredManagerError,
     ) as err:  # treat failure to store as mangled on receipt hence protocol error
